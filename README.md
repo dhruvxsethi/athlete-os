@@ -15,7 +15,7 @@ Ask Claude things like:
 ## Install
 
 ```bash
-claude plugin install https://github.com/dhruvxsethi/athlete-os
+git clone https://github.com/dhruvxsethi/athlete-os && claude plugin install ./athlete-os
 ```
 
 Then in Claude:
