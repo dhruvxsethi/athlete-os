@@ -1,0 +1,18 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "athlete-os",
+  "description": "Strava-powered triathlon training intelligence for Claude Code",
+  "owner": {
+    "name": "Athlete OS",
+    "email": "dhruvxsethi@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "athlete-os",
+      "description": "Triathlon training intelligence powered by Strava. Analyze workouts, track trends, and get coaching feedback — all inside Claude.",
+      "category": "productivity",
+      "source": "./plugin",
+      "homepage": "https://github.com/dhruvxsethi/athlete-os"
+    }
+  ]
+}
