@@ -99,7 +99,7 @@ Once connected, readiness scores and HRV data are automatically woven into:
 ### Telegram
 Say **"Set up Telegram notifications"** — you'll create a free bot via @BotFather and get your chat ID from @userinfobot.
 
-Once connected, any summary or debrief can be pushed to your phone. Works with all automated routines.
+Telegram is **outbound only** — Athlete OS pushes summaries and debriefs to your phone automatically. To ask questions or dig deeper, use Claude Code directly. No always-on terminal required.
 
 ---
 

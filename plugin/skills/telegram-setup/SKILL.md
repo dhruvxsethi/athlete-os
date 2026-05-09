@@ -12,18 +12,9 @@ triggers:
 
 # Telegram Setup
 
-Walk the user through creating a Telegram bot and saving the credentials. The whole thing takes about 2 minutes.
+Athlete OS uses Telegram as a **one-way push channel** — it sends you post-workout debriefs, daily briefings, and weekly summaries automatically. To reply or ask questions, just use Claude Code directly.
 
-## Two Telegram systems — understand the difference
-
-There are two separate Telegram integrations you might encounter. They are completely independent:
-
-| System | What it is | What it's for |
-|--------|-----------|---------------|
-| **Athlete OS send-telegram** | Outbound push only. Uses a bot token + chat ID stored in credentials.json. | Automated training summaries, workout debriefs, weekly reports sent to your Telegram. |
-| **Claude Code Telegram plugin** | Two-way chat. Configured separately via `/telegram:configure`. | Sending Claude messages FROM Telegram, having a conversation with Claude via Telegram. |
-
-This skill sets up the **Athlete OS** side — outbound push notifications. If the user has the general Claude Code Telegram plugin set up, that's a separate thing and does NOT replace this setup.
+Setup takes about 2 minutes.
 
 ## Steps
 
@@ -89,12 +80,12 @@ Call `send-telegram` with message:
 ```
 ✅ Athlete OS connected to Telegram!
 
-Your training summaries will appear here. Try asking Claude: "Send my weekly summary to Telegram."
+Your workout debriefs and training summaries will appear here automatically.
 ```
 
 If the message arrives in their Telegram chat:
 
-> "✅ Telegram connected! Say 'set up my routines' to automate weekly summaries, daily briefings, and post-workout debriefs."
+> "✅ Telegram connected! Say 'set up my routines' to automate post-workout debriefs, daily briefings, and weekly summaries."
 
 ## Error Handling
 
@@ -104,7 +95,6 @@ If the message arrives in their Telegram chat:
 | "Chat not found" | Send at least one message to your bot first (tap Start), then retry |
 | "Bad Request: chat_id" | Chat ID must be a plain number — no spaces or symbols |
 | Credentials file not found | Run Strava setup first: "Connect my Strava account" |
-| send-telegram errors but credentials look right | Try messaging your bot `/start` in Telegram to initiate the conversation |
 
 ## After setup
 
@@ -113,4 +103,4 @@ Offer immediately:
 
 ## For cloud routines
 
-When running as a scheduled cloud routine, Telegram uses `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` env vars (in addition to the Strava vars). Remind them to add these at **claude.ai/settings → Routines → Environment variables** alongside their Strava credentials.
+When running as a scheduled cloud routine, Telegram uses `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` env vars. Remind them to add these at **claude.ai/settings → Routines → Environment variables** alongside their Strava credentials.
