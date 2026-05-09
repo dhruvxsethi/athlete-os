@@ -17,7 +17,7 @@ const CREDS_DIR = join(homedir(), ".config", "athlete-os");
 const CREDS_FILE = join(CREDS_DIR, "credentials.json");
 
 function loadCredentials() {
-  // 1. Environment variables take priority (useful for CI or manual override)
+  // 1. Full env var set (access token present — use as-is, refresh will handle expiry)
   if (process.env.STRAVA_ACCESS_TOKEN) {
     return {
       client_id: process.env.STRAVA_CLIENT_ID,
@@ -26,7 +26,17 @@ function loadCredentials() {
       refresh_token: process.env.STRAVA_REFRESH_TOKEN,
     };
   }
-  // 2. Config file (written by oauth.js)
+  // 2. Refresh-token-only env vars (remote agents / scheduled routines)
+  //    No access token — we'll get one via refresh on first API call.
+  if (process.env.STRAVA_REFRESH_TOKEN && process.env.STRAVA_CLIENT_ID) {
+    return {
+      client_id: process.env.STRAVA_CLIENT_ID,
+      client_secret: process.env.STRAVA_CLIENT_SECRET,
+      access_token: null, // triggers immediate refresh in stravaGet
+      refresh_token: process.env.STRAVA_REFRESH_TOKEN,
+    };
+  }
+  // 3. Config file (written by oauth.js — local installs)
   if (existsSync(CREDS_FILE)) {
     try { return JSON.parse(readFileSync(CREDS_FILE, "utf8")); } catch {}
   }
@@ -48,6 +58,15 @@ async function stravaGet(creds, path, params = {}) {
     if (v != null && v !== undefined) url.searchParams.set(k, String(v));
   }
 
+  // No access token (refresh-only mode for remote agents) → refresh first
+  if (!creds.access_token && creds.refresh_token) {
+    const refreshed = await refreshToken(creds);
+    creds.access_token = refreshed.access_token;
+    creds.refresh_token = refreshed.refresh_token;
+    // Only save to file if we're in local mode (file exists / is writable)
+    try { saveCredentials(creds); } catch {}
+  }
+
   let res = await fetch(url, {
     headers: { Authorization: `Bearer ${creds.access_token}` },
   });
@@ -57,7 +76,7 @@ async function stravaGet(creds, path, params = {}) {
     const refreshed = await refreshToken(creds);
     creds.access_token = refreshed.access_token;
     creds.refresh_token = refreshed.refresh_token;
-    saveCredentials(creds);
+    try { saveCredentials(creds); } catch {}
     res = await fetch(url, {
       headers: { Authorization: `Bearer ${creds.access_token}` },
     });

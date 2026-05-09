@@ -12,15 +12,28 @@ triggers:
 
 # Setup Automated Training Routines
 
-Help the athlete set up scheduled routines so their training intel arrives automatically — no prompting needed.
+Help the athlete set up scheduled routines. Be upfront about the one setup requirement before asking anything else.
 
-## How Routines Work in Claude Code
+## Important: remote agents need env vars
 
-Claude Code has a built-in scheduler. Routines run as scheduled agents at whatever cadence the user sets. Use the `schedule` skill (invoke it) to create them.
+Scheduled routines run in Claude's cloud — they can't read your local credentials file. Say this immediately:
+
+> "Before we set up the schedule, there's one quick thing: routines run in the cloud so they need your Strava credentials as environment variables. Run this to see what you need:
+> ```bash
+> cat ~/.config/athlete-os/credentials.json
+> ```
+> Then go to **claude.ai/settings → Routines → Environment variables** and add:
+> - `STRAVA_CLIENT_ID`
+> - `STRAVA_CLIENT_SECRET`
+> - `STRAVA_REFRESH_TOKEN`
+>
+> Skip `STRAVA_ACCESS_TOKEN` — it expires every 6 hours and gets refreshed automatically."
+
+Run the cat command and show the output so they can copy the values directly.
 
 ## Steps
 
-### 1. Ask what they want to automate
+### 1. Ask what to automate
 
 Use AskUserQuestion:
 - Question: "Which routines do you want to run automatically?"
@@ -28,32 +41,26 @@ Use AskUserQuestion:
 - multiSelect: true
 - Options:
   - "Weekly training summary" (description: "Every Monday morning — full week breakdown by sport")
-  - "Monthly trends" (description: "1st of each month — volume and zone charts for the past 3 months")
-  - "Post-activity debrief" (description: "After every logged activity — automatic analysis")
+  - "Monthly trends" (description: "1st of each month — last 3 months of volume and zone charts")
 
-### 2. Ask when for each selected routine
+### 2. Ask timing for weekly summary (if selected)
 
-For **weekly summary**, ask:
-- Question: "What day and time for your weekly summary?"
+- Question: "When do you want your weekly summary?"
 - Header: "Schedule"
-- Options: "Monday 7am", "Monday 8am", "Sunday evening 8pm", "Sunday evening 9pm"
+- Options: "Monday 7am", "Monday 8am", "Sunday 8pm", "Sunday 9pm"
 
-For **monthly trends**, no need to ask — always runs on the 1st at 8am.
+### 3. Create the routines
 
-### 3. Create the scheduled tasks
-
-Invoke the `schedule` skill and create each selected routine with the appropriate cron expression and prompt.
-
-Use these prompts for each routine:
+Use the `schedule` skill to create each selected routine.
 
 **Weekly summary prompt:**
 ```
-Run the weekly-training-summary skill for my Strava training. Focus on triathlon sports (swim, bike, run). Show zone distribution and coaching notes.
+Run the weekly-training-summary skill. Focus on triathlon sports (swim, bike, run). Show zone distribution and a coaching note.
 ```
 
 **Monthly trends prompt:**
 ```
-Run the monthly-trends skill for my Strava training over the last 3 months. Show distance trends by sport with unicode bar charts.
+Run the monthly-trends skill for the last 3 months. Show distance trends by sport with bar charts.
 ```
 
 **Cron expressions:**
@@ -63,16 +70,6 @@ Run the monthly-trends skill for my Strava training over the last 3 months. Show
 - Sunday 9pm: `0 21 * * 0`
 - 1st of month 8am: `0 8 1 * *`
 
-### 4. Confirm setup
+### 4. Confirm
 
-After creating each routine, tell the user:
-- What will run and when (in plain English, not cron)
-- That they can say "show my scheduled routines" to see them or "cancel my weekly summary" to remove one
-
-## Example Output
-
-> ✓ Two routines scheduled:
-> - **Weekly summary** — every Monday at 8am
-> - **Monthly trends** — 1st of each month at 8am
->
-> They'll appear in your Claude Code session automatically. Say "show my routines" to manage them.
+> "✓ Routines created. Once you've added the three env vars at claude.ai/settings → Routines, they'll run automatically. Say 'show my routines' to manage them."
