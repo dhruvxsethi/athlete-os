@@ -14,51 +14,23 @@ triggers:
 
 # Setup Automated Training Routines
 
-Help the athlete set up scheduled routines. Be upfront about the one setup requirement before asking anything else.
+## Step 1 — Read credentials
 
-## Important: remote agents need env vars
-
-Scheduled routines run in Claude's cloud — they can't read your local credentials file. Say this immediately:
-
-> "Before we set up the schedule, there's one quick thing: routines run in the cloud so they need your credentials as environment variables.
->
-> Run this to see your values:
-> ```bash
-> cat ~/.config/athlete-os/credentials.json
-> ```
->
-> Then go to **claude.ai/settings → Routines → Environment variables** and add:
-> - `STRAVA_CLIENT_ID`
-> - `STRAVA_CLIENT_SECRET`
-> - `STRAVA_REFRESH_TOKEN`
->
-> If you have Telegram set up, also add:
-> - `TELEGRAM_BOT_TOKEN`
-> - `TELEGRAM_CHAT_ID`
->
-> If you have Oura, add:
-> - `OURA_ACCESS_TOKEN`
->
-> Skip `STRAVA_ACCESS_TOKEN` — it expires every 6 hours and is refreshed automatically."
-
-Run the cat command and show the output so they can copy the values directly.
-
-## Step 1 — Check Telegram
-
-Check if Telegram is configured by reading credentials directly (do NOT call send-telegram to check — that sends a real message):
+Run this to get current credential values:
 
 ```bash
-node -e "
-const fs = require('fs'), os = require('os'), path = require('path');
-const f = path.join(os.homedir(), '.config/athlete-os/credentials.json');
-try {
-  const c = JSON.parse(fs.readFileSync(f, 'utf8'));
-  console.log(c.telegram_bot_token ? 'telegram=configured' : 'telegram=not_configured');
-} catch { console.log('telegram=not_configured'); }
-"
+cat ~/.config/athlete-os/credentials.json
 ```
 
-Store whether Telegram is available for the routine prompts below.
+Extract these fields (you'll embed them directly in the routine prompts):
+- `client_id`
+- `client_secret`
+- `refresh_token`
+- `telegram_bot_token` (if present)
+- `telegram_chat_id` (if present)
+- `oura_access_token` (if present)
+
+Also note which integrations are configured (telegram, oura) — use the appropriate routine prompt variant below.
 
 ## Step 2 — Ask what to automate
 
@@ -67,77 +39,72 @@ Use AskUserQuestion:
 - Header: "Automated routines"
 - multiSelect: true
 - Options:
-  - "After every workout — debrief sent to Telegram within an hour of finishing" (description: "Checks hourly for new activities, sends post-workout debrief automatically")
-  - "Daily morning briefing — training load + today's recommendation" (description: "Every morning: CTL/ATL/TSB, Oura readiness if connected, what to do today")
-  - "Weekly training summary — full week breakdown every Monday" (description: "Every Monday morning: distance, zones, highlights, coaching reflection")
-  - "Monthly trends — volume and progress charts" (description: "1st of each month: last 3 months of training trends by sport")
+  - "After every workout — debrief sent to Telegram within an hour of finishing"
+  - "Daily morning briefing — training load + today's recommendation"
+  - "Weekly training summary — full week breakdown every Monday"
+  - "Monthly trends — volume and progress charts"
 
 ## Step 3 — Ask timing (only for selections that need it)
 
-If **weekly summary** is selected:
+If **weekly summary** selected:
 - Question: "When do you want your weekly summary?"
-- Header: "Weekly schedule"
 - Options: "Monday 7am", "Monday 8am", "Sunday 8pm", "Sunday 9pm"
 
-If **daily briefing** is selected:
+If **daily briefing** selected:
 - Question: "What time for your daily briefing?"
-- Header: "Daily schedule"
 - Options: "7am", "7:30am", "8am", "8:30am"
 
 ## Step 4 — Create the routines
 
-Use the `schedule` skill to create each selected routine. Create all selected routines in sequence.
+Use the `schedule` skill for each. Every routine prompt must start with the credential restore block — substitute the actual values from Step 1.
+
+**Credential restore block (prepend to every routine prompt):**
+```
+Start by restoring credentials. Run this bash command exactly:
+node -e "const fs=require('fs'),os=require('os'),path=require('path'),d=path.join(os.homedir(),'.config/athlete-os');fs.mkdirSync(d,{recursive:true});fs.writeFileSync(path.join(d,'credentials.json'),JSON.stringify({client_id:'CLIENT_ID_HERE',client_secret:'CLIENT_SECRET_HERE',refresh_token:'REFRESH_TOKEN_HERE',telegram_bot_token:'BOT_TOKEN_HERE',telegram_chat_id:'CHAT_ID_HERE'},null,2));console.log('credentials restored');"
+
+Then proceed with the routine below.
+```
+
+Substitute `CLIENT_ID_HERE`, `CLIENT_SECRET_HERE`, `REFRESH_TOKEN_HERE`, `BOT_TOKEN_HERE`, `CHAT_ID_HERE` with the actual values from Step 1. If Telegram isn't configured, omit those two fields from the JSON. If Oura is configured, add `oura_access_token:'OURA_TOKEN_HERE'` to the JSON.
 
 ---
 
-### After every workout (hourly check)
+### After every workout
 
 **Cron**: `0 * * * *`
 
-**Prompt (with Telegram):**
+**Prompt:**
 ```
-Check for new Strava activities in the last 90 minutes: call get-all-activities with after set to (current Unix timestamp minus 5400). If there are one or more new activities, run the post-workout-debrief skill on the most recent one, then call send-telegram with the full debrief text. If there are no new activities, do nothing and output nothing.
-```
+[credential restore block]
 
-**Prompt (without Telegram):**
-```
-Check for new Strava activities in the last 90 minutes: call get-all-activities with after set to (current Unix timestamp minus 5400). If there are one or more new activities, run the post-workout-debrief skill on the most recent one. If there are no new activities, do nothing and output nothing.
+Check for new Strava activities in the last 90 minutes: call get-all-activities with after set to (current Unix timestamp minus 5400). If there are one or more new activities, run the debrief skill on the most recent one, then call send-telegram with the full debrief as plain text. If no new activities, do nothing and output nothing.
 ```
 
 ---
 
 ### Daily morning briefing
 
-**Cron**: `0 7 * * *` (or `30 7`, `0 8`, `30 8` depending on chosen time)
+**Cron**: `0 7 * * *` (adjust hour/minute per chosen time: 7am=`0 7`, 7:30=`30 7`, 8am=`0 8`, 8:30=`30 8`)
 
-**Prompt (with Telegram):**
+**Prompt:**
 ```
-Give a concise daily training briefing. Call get-all-activities for the last 90 days to compute training load (CTL/ATL/TSB using the training-load skill instructions). Call check-oura-connection — if connected, call get-oura-readiness for today and include the readiness score. Write a 2-3 sentence recommendation for today's training based on form and recovery. Then call send-telegram with the full briefing as plain text.
-```
+[credential restore block]
 
-**Prompt (without Telegram):**
-```
-Give a concise daily training briefing. Call get-all-activities for the last 90 days to compute training load (CTL/ATL/TSB using the training-load skill instructions). Call check-oura-connection — if connected, call get-oura-readiness for today and include the readiness score. Write a 2-3 sentence recommendation for today's training based on form and recovery.
+Give a concise daily training briefing. Call get-all-activities for the last 90 days to compute training load (CTL/ATL/TSB). Call check-oura-connection — if connected, call get-oura-readiness for today. Write 2-3 sentences recommending what to do today based on form and recovery. Then call send-telegram with the full briefing as plain text.
 ```
 
 ---
 
 ### Weekly training summary
 
-**Cron** (based on chosen time):
-- Monday 7am: `0 7 * * 1`
-- Monday 8am: `0 8 * * 1`
-- Sunday 8pm: `0 20 * * 0`
-- Sunday 9pm: `0 21 * * 0`
+**Cron**: Monday 7am=`0 7 * * 1` · Monday 8am=`0 8 * * 1` · Sunday 8pm=`0 20 * * 0` · Sunday 9pm=`0 21 * * 0`
 
-**Prompt (with Telegram):**
+**Prompt:**
 ```
-Run the weekly-training-summary skill for the past 7 days. Focus on all sport types. After generating the summary, call send-telegram with the full summary as plain text (no markdown formatting).
-```
+[credential restore block]
 
-**Prompt (without Telegram):**
-```
-Run the weekly-training-summary skill for the past 7 days. Focus on all sport types.
+Run the summary skill for the past 7 days across all sport types. After generating, call send-telegram with the full summary as plain text (no markdown — strip ** and # but keep tables and unicode bars).
 ```
 
 ---
@@ -146,14 +113,11 @@ Run the weekly-training-summary skill for the past 7 days. Focus on all sport ty
 
 **Cron**: `0 8 1 * *`
 
-**Prompt (with Telegram):**
+**Prompt:**
 ```
-Run the monthly-trends skill for the last 3 months. Show distance trends by sport with unicode bar charts. After generating, call send-telegram with the full output as plain text.
-```
+[credential restore block]
 
-**Prompt (without Telegram):**
-```
-Run the monthly-trends skill for the last 3 months. Show distance trends by sport with unicode bar charts.
+Run the summary skill for the last 3 months showing month-by-month volume trends with unicode bar charts by sport. After generating, call send-telegram with the full output as plain text.
 ```
 
 ---
@@ -161,6 +125,6 @@ Run the monthly-trends skill for the last 3 months. Show distance trends by spor
 ## Step 5 — Confirm
 
 > "✓ [N] routine(s) created:
-> [list each routine and its schedule]
+> [list each with its schedule]
 >
-> Once you've added the env vars at claude.ai/settings → Routines, they'll run automatically. The after-every-workout routine checks once per hour — so you'll get your debrief within 60 minutes of finishing. Say 'show my routines' anytime to manage them."
+> Credentials are embedded directly in each routine — no env var setup needed. The after-every-workout routine checks once per hour, so you'll get your debrief within 60 minutes of finishing."
