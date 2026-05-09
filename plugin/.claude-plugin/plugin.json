@@ -1,11 +1,11 @@
 {
   "name": "athlete-os",
-  "version": "0.1.0",
-  "description": "Strava-powered personal fitness intelligence. Analyze workouts, generate training reports, track trends, and send summaries — all through Claude.",
+  "version": "0.2.0",
+  "description": "Triathlon training intelligence powered by Strava. Analyze workouts, track trends, and get coaching feedback — all inside Claude.",
   "author": {
     "name": "Athlete OS"
   },
-  "keywords": ["strava", "fitness", "running", "cycling", "training", "health"],
-  "homepage": "https://github.com/your-username/athlete-os",
+  "keywords": ["strava", "triathlon", "fitness", "running", "cycling", "swimming", "training"],
+  "homepage": "https://github.com/dhruvxsethi/athlete-os",
   "license": "MIT"
 }
