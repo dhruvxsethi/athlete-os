@@ -16,7 +16,7 @@ Ask Claude things like:
 > Requires Node.js 18+. No npm install — zero dependencies.
 
 ```bash
-git clone https://github.com/dhruvxsethi/athlete-os && claude plugin install ./athlete-os
+git clone https://github.com/dhruvxsethi/athlete-os && cd athlete-os && bash install.sh
 ```
 
 Then in Claude, say: **"Connect my Strava account"**
@@ -26,8 +26,6 @@ Claude will ask for your Client ID and Secret, open your browser to authorize, a
 ---
 
 ## Updates
-
-Since the plugin runs from your local clone, updating is just:
 
 ```bash
 cd athlete-os && git pull
