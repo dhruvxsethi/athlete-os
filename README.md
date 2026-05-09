@@ -12,49 +12,19 @@ Ask Claude things like:
 
 ---
 
-## Quickstart
-
-### 1. Clone the repo
+## Install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/athlete-os
-cd athlete-os
+claude plugin install https://github.com/dhruvxsethi/athlete-os
 ```
 
-### 2. Install the MCP server dependencies
+Then in Claude:
 
-```bash
-cd mcp-server && npm install && cd ..
-```
+> **"Connect my Strava account"**
 
-### 3. Connect Strava (one-time OAuth)
+Claude will walk you through getting your free API credentials and handle the OAuth flow in-chat. Done in under 2 minutes.
 
-```bash
-node mcp-server/oauth.js
-```
-
-This will:
-- Ask for your Strava Client ID and Secret (get them free at [strava.com/settings/api](https://www.strava.com/settings/api))
-- Open your browser to authorize
-- Save tokens automatically to `.env`
-
-### 4. Load tokens into your shell
-
-```bash
-set -a && source .env && set +a
-```
-
-### 5. Install the plugin into Claude Code
-
-```bash
-claude plugin install .
-```
-
-### 6. Ask anything
-
-```
-What did I do this week?
-```
+> **Requires Node.js 18+** — no npm install needed, zero external dependencies.
 
 ---
 
@@ -64,9 +34,8 @@ What did I do this week?
 2. Click **Create App**
 3. Fill in: any name, category "Data Importer", website `http://localhost`, callback domain **`localhost`**
 4. Copy your **Client ID** (a number) and **Client Secret** (a long string)
-5. Run `node mcp-server/oauth.js` — it will ask for these values
 
-That's it. Access and refresh tokens are fetched and managed automatically forever.
+Claude will ask for these when you say "Connect my Strava account."
 
 ---
 
@@ -74,6 +43,7 @@ That's it. Access and refresh tokens are fetched and managed automatically forev
 
 | Skill | Trigger |
 |-------|---------|
+| `oauth-setup` | "connect Strava" |
 | `latest-activity-analysis` | "analyze my last run" |
 | `weekly-training-summary` | "what did I do this week" |
 | `year-to-date-summary` | "how far have I run this year" |
@@ -84,7 +54,6 @@ That's it. Access and refresh tokens are fetched and managed automatically forev
 | `weather-enrichment` | "what was the weather like" |
 | `team-leaderboard-summary` | "how is my club doing" |
 | `notification-summary` | "send to Slack" |
-| `oauth-setup` | "connect Strava" |
 
 ## Commands
 
@@ -102,7 +71,7 @@ That's it. Access and refresh tokens are fetched and managed automatically forev
 
 ## Notification Setup (Optional)
 
-Add any of these to your `.env`:
+Add any of these to your shell environment or `.env` file:
 
 ```bash
 # Slack
@@ -129,15 +98,13 @@ See `docs/setup-guide.md` for full instructions.
 ```
 athlete-os/
 ├── .claude-plugin/plugin.json   # Plugin manifest
-├── .mcp.json                    # MCP server config (points to local server)
+├── .mcp.json                    # MCP server config
 ├── mcp-server/
-│   ├── index.js                 # Your own Strava MCP server (no third parties)
-│   ├── oauth.js                 # One-click OAuth helper
-│   └── package.json
+│   ├── index.js                 # Strava MCP server — zero dependencies
+│   └── oauth.js                 # OAuth helper — zero dependencies
 ├── skills/                      # 11 Claude skills
 ├── commands/                    # 7 slash commands
-├── notifications/templates/     # Slack, Telegram, email setup guides
-└── docs/                        # Setup guide, demo script, roadmap, privacy
+└── docs/                        # Setup guide, privacy policy, roadmap
 ```
 
 ---
@@ -145,8 +112,7 @@ athlete-os/
 ## Privacy
 
 - GPS coordinates never leave your machine
-- Private activities require explicit confirmation before sharing
-- All credentials in `.env` — gitignored, never committed
+- Credentials saved to `~/.config/athlete-os/credentials.json` — gitignored, never committed
 - No telemetry, no analytics, no third-party data collection
 - Read-only Strava access
 
