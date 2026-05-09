@@ -1,0 +1,63 @@
+---
+name: latest-activity-analysis
+description: Analyzes the athlete's most recent Strava activity in depth. Use when the user asks about their last workout, most recent run, latest ride, what they did today, or how their last session went. Fetches activity data and produces a structured performance breakdown.
+triggers:
+  - "what did I do today"
+  - "analyze my last workout"
+  - "how was my last run"
+  - "tell me about my most recent activity"
+  - "latest ride"
+  - "how did my workout go"
+---
+
+# Latest Activity Analysis
+
+Produce a detailed breakdown of the athlete's most recent Strava activity.
+
+## Steps
+
+1. Call `get-recent-activities` with `per_page: 1` to retrieve the latest activity.
+2. Call `get-activity-details` with the activity ID.
+3. If the activity has `has_heartrate: true`, extract heart rate data.
+4. If the activity type is `Ride` or `Run`, call `get-activity-laps` for split-level data.
+5. Optionally call `get-activity-streams` for granular pace/power/HR streams if available.
+6. Synthesize all data into the output format below.
+
+## Output Format
+
+Present the analysis in this order:
+
+**Activity Header**
+- Activity name, type, and date
+- Total distance, moving time, elapsed time
+- Elevation gain/loss
+
+**Performance Summary**
+- Average and max pace/speed (convert to appropriate units: min/km for runs, km/h for rides)
+- Average and max heart rate (if available)
+- Estimated power or effort score (if available)
+- Calories burned
+
+**Lap / Split Breakdown** (if laps exist)
+- Table: Lap | Distance | Time | Pace | HR
+
+**Highlights**
+- Best lap or fastest split
+- Any PRs or achievements (check `achievement_count` and `pr_count`)
+- Kudos count and social notes
+
+**Coaching Note**
+- One paragraph of qualitative feedback: Was the effort appropriate? Signs of fatigue or strong form? One actionable suggestion for next time.
+
+## Privacy
+
+- Do not display start/end GPS coordinates.
+- Do not display the map URL unless the user explicitly asks.
+- If `private: true` on the activity, note that this is a private activity and do not share summary externally without user confirmation.
+
+## Example Prompts
+
+- "Analyze my last run"
+- "How was my workout today?"
+- "What did I just finish?"
+- "/athlete-latest"

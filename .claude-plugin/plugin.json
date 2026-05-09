@@ -1,0 +1,11 @@
+{
+  "name": "athlete-os",
+  "version": "0.1.0",
+  "description": "Strava-powered personal fitness intelligence. Analyze workouts, generate training reports, track trends, and send summaries — all through Claude.",
+  "author": {
+    "name": "Athlete OS"
+  },
+  "keywords": ["strava", "fitness", "running", "cycling", "training", "health"],
+  "homepage": "https://github.com/your-username/athlete-os",
+  "license": "MIT"
+}

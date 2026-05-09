@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "athlete-os-strava": {
+      "command": "node",
+      "args": ["mcp-server/index.js"],
+      "env": {
+        "STRAVA_CLIENT_ID": "${STRAVA_CLIENT_ID}",
+        "STRAVA_CLIENT_SECRET": "${STRAVA_CLIENT_SECRET}",
+        "STRAVA_ACCESS_TOKEN": "${STRAVA_ACCESS_TOKEN}",
+        "STRAVA_REFRESH_TOKEN": "${STRAVA_REFRESH_TOKEN}"
+      }
+    }
+  }
+}

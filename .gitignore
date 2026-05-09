@@ -1,0 +1,22 @@
+# Credentials — never commit these
+.env
+*.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+mcp-server/node_modules/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Build
+dist/
+*.plugin
