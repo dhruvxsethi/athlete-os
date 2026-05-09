@@ -44,5 +44,10 @@ console.log('✓ Athlete OS registered at: $PLUGIN_DIR');
 "
 
 echo ""
-echo "✓ Done. Restart Claude Code, then say: \"Connect my Strava account\""
+echo "✓ Done."
+echo ""
+echo "  → Fully quit Claude Code (⌘Q), then reopen it."
+echo "    (Closing a window isn't enough — the app must restart.)"
+echo ""
+echo "  → Then say: \"Connect my Strava account\""
 echo ""
