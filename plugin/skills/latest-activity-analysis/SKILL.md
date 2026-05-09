@@ -14,6 +14,14 @@ triggers:
 
 Produce a detailed breakdown of the athlete's most recent Strava activity.
 
+## MCP connection check
+
+Before doing anything, verify the MCP tools are available by calling `check-strava-connection`. If that tool isn't found or returns an error saying it's not connected, stop immediately and say:
+
+> "The Strava connection isn't active in this session yet. Please fully quit Claude Code (⌘Q) and reopen it — the MCP server loads on startup. This takes about 5 seconds."
+
+Do NOT attempt to work around the missing MCP tools or claim you can call Strava directly. You cannot without the MCP server running.
+
 ## Steps
 
 1. Call `get-recent-activities` with `per_page: 1` to retrieve the latest activity.

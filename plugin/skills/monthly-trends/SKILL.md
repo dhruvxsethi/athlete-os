@@ -10,6 +10,15 @@ triggers:
   - "show me my progress"
   - "training volume over time"
 ---
+## MCP connection check
+
+Before doing anything, call `check-strava-connection`. If the tool isn't available, say:
+
+> "The Strava connection isn't active yet. Please fully quit Claude Code (⌘Q) and reopen it — the MCP server loads on startup."
+
+Do NOT attempt to work around missing MCP tools.
+
+
 
 # Monthly Trends
 
