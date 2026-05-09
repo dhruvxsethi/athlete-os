@@ -17,7 +17,12 @@ Show month-by-month training trends entirely inline using unicode bar charts and
 
 ## Steps
 
-1. Calculate `after` = Unix timestamp for 6 months ago (current time − 15,768,000 seconds). Use 12 months if the user asks for a longer view.
+1. If the user hasn't specified a timeframe, use AskUserQuestion to ask:
+   - Question: "How far back do you want to look?"
+   - Header: "Timeframe"
+   - Options: "3 months", "6 months", "12 months"
+   Then calculate `after` accordingly (3m = −7,776,000s, 6m = −15,768,000s, 12m = −31,536,000s).
+   If they've already said "last 6 months" or similar, skip the question.
 2. Call `get-all-activities` with that `after` timestamp.
 3. Group activities by calendar month (YYYY-MM).
 4. For each month, aggregate per sport type:

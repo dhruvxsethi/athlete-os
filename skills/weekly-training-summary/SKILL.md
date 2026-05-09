@@ -17,7 +17,12 @@ Generate a complete training week report for the past 7 days.
 
 ## Steps
 
-1. Call `get-all-activities` with `after` set to the Unix timestamp for 7 days ago (current time − 604800 seconds).
+1. If the user hasn't specified a focus sport, use AskUserQuestion to ask:
+   - Question: "Focus on a specific sport or show everything?"
+   - Header: "Sport focus"
+   - Options: "All sports", "Run", "Bike", "Swim"
+   If they've already mentioned a sport ("my running this week"), skip the question.
+2. Call `get-all-activities` with `after` set to the Unix timestamp for 7 days ago (current time − 604800 seconds).
 2. Group activities by type (Run, Ride, Swim, Walk, Hike, WeightTraining, etc.).
 3. For each activity type, aggregate: total distance, total duration, total elevation gain, count.
 4. Identify the longest and most intense activity of the week.

@@ -1,27 +1,27 @@
 # Athlete OS
 
-**Strava-powered fitness intelligence for Claude Code.**
+**Triathlon training intelligence inside Claude. Powered by Strava.**
 
 Ask Claude things like:
-- *"What did I do this week?"*
-- *"Analyze my last run."*
-- *"How far have I cycled this year?"*
-- *"What was the weather like during my ride?"*
-- *"What's my half marathon PR?"*
+- *"How was my long ride yesterday?"*
+- *"What did I do this week — show me by sport."*
+- *"Am I spending enough time in zone 2?"*
+- *"How has my run volume changed over the last 3 months?"*
+- *"Set up a weekly summary every Monday morning."*
 
 ---
 
 ## Install
 
-> Requires Node.js 18+. No npm install — zero dependencies.
+> Requires Node.js 18+. Zero dependencies — no npm install.
 
 ```bash
 git clone https://github.com/dhruvxsethi/athlete-os && cd athlete-os && bash install.sh
 ```
 
-Then in Claude, say: **"Connect my Strava account"**
+Restart Claude Code, then say: **"Connect my Strava account"**
 
-Claude will ask for your Client ID and Secret, open your browser to authorize, and save everything automatically. Done in under 2 minutes.
+Claude will ask for your Client ID and Secret and handle the OAuth flow in-chat. Done in 2 minutes.
 
 ---
 
@@ -31,7 +31,7 @@ Claude will ask for your Client ID and Secret, open your browser to authorize, a
 cd athlete-os && git pull
 ```
 
-No reinstall needed — Claude picks up changes immediately.
+No reinstall needed.
 
 ---
 
@@ -40,9 +40,7 @@ No reinstall needed — Claude picks up changes immediately.
 1. Go to [strava.com/settings/api](https://www.strava.com/settings/api)
 2. Click **Create App**
 3. Fill in: any name, category "Data Importer", website `http://localhost`, callback domain **`localhost`**
-4. Copy your **Client ID** (a number) and **Client Secret** (a long string)
-
-Claude will ask for these when you say "Connect my Strava account."
+4. Copy your **Client ID** and **Client Secret**
 
 ---
 
@@ -51,14 +49,11 @@ Claude will ask for these when you say "Connect my Strava account."
 | Skill | What to say |
 |-------|-------------|
 | Connect Strava | "connect my Strava account" |
-| Latest activity | "analyze my last run" |
+| Latest activity | "how was my ride yesterday" |
 | Weekly summary | "what did I do this week" |
-| Year-to-date | "how far have I run this year" |
-| Longest effort | "what was my longest ride" |
-| Race history | "show me my races" |
-| Post-workout debrief | "I just finished a workout" |
-| Heart rate & pace | "was I in zone 2" |
-| Weather enrichment | "what was the weather like during my ride" |
+| Pace & zone distribution | "am I in zone 2 enough" |
+| Monthly trends | "show me my last 3 months" |
+| Setup routines | "automate my weekly summary" |
 
 ## Commands
 
@@ -67,36 +62,27 @@ Claude will ask for these when you say "Connect my Strava account."
 | `/athlete-status` | Connection health check |
 | `/athlete-latest` | Analyze most recent activity |
 | `/athlete-weekly` | This week's training report |
-| `/athlete-ytd` | Year-to-date totals |
-| `/athlete-longest` | Your biggest effort |
-| `/athlete-race` | Race history and PRs |
+
+---
+
+## Automated Routines
+
+Say **"set up my weekly routine"** and Claude will schedule:
+- Weekly training summary — every Monday morning
+- Monthly trends — 1st of each month
+
+Runs automatically in Claude Code. No prompting needed.
 
 ---
 
 ## Privacy
 
-- Credentials saved to `~/.config/athlete-os/credentials.json` — gitignored, never committed
-- GPS coordinates never leave your machine
+- Credentials saved to `~/.config/athlete-os/credentials.json` — never committed
 - Read-only Strava access
 - No telemetry, no third-party data collection
 
 ---
 
-## What's Inside
-
-```
-athlete-os/
-├── .claude-plugin/plugin.json   # Plugin manifest
-├── .mcp.json                    # MCP server (points to local server)
-├── mcp-server/
-│   ├── index.js                 # Strava MCP server — zero dependencies
-│   └── oauth.js                 # OAuth helper — zero dependencies
-├── skills/                      # Claude skills
-└── commands/                    # Slash commands
-```
-
----
-
 ## License
 
-MIT — fork it, make it yours.
+MIT
