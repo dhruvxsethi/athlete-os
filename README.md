@@ -43,30 +43,27 @@ Running `install.sh` again cleans up the old version and reinstalls fresh. Quit 
 
 ## What's included
 
-### Skills (say these naturally)
+### Just say it naturally
 
 | What to say | What happens |
 |-------------|--------------|
-| "Connect my Strava account" | Full OAuth setup — Client ID, Secret, browser auth, token save |
-| "How was my last workout?" | Deep debrief — splits, HR zones, weather, coaching note |
-| "What did I do this week?" | Sport totals, highlights, HR trend, weekly assessment |
-| "What's my training load?" | CTL/ATL/TSB performance chart, 6-week trend, recovery state |
-| "How far am I toward my goal?" | Annual distance goal progress with year-end projection |
-| "Show me last 3 months" | Volume trends by sport with unicode bar charts |
-| "Connect my Oura Ring" | Recovery scores and HRV woven into every analysis |
-| "Set up Telegram notifications" | Post-workout debriefs and summaries sent to your phone |
-| "Set up my routines" | Automated check-ins on a schedule (see below) |
+| "Connect my Strava account" | Full OAuth — Client ID, Secret, browser auth, token saved |
+| "Connect my Oura Ring" | Personal access token setup, readiness woven into every analysis |
+| "Set up Telegram" | Bot token setup, push notifications to your phone |
+| "Just finished a run — how'd it go?" | Quick coaching debrief |
+| "Analyze my last ride in detail" | Full breakdown — splits, HR zones, laps, coaching note |
+| "What's my pace distribution?" | Zone chart for last 90 days |
+| "What did I do this week?" | Weekly sport totals, highlights, coaching reflection |
+| "Show me last 6 months" | Month-by-month volume trends with bar charts |
+| "What's my training load?" | CTL/ATL/TSB performance chart, 6-week fitness trend |
+| "How far am I toward my goal?" | Annual goal progress with year-end projection |
+| "Set up my routines" | Automated debriefs, briefings, summaries on a schedule |
 
-### Commands (slash commands)
+### One command
 
 | Command | Action |
 |---------|--------|
-| `/athlete-status` | Full health check — Strava, Oura, Telegram, last activity |
-| `/athlete-latest` | Analyze most recent activity |
-| `/athlete-weekly` | This week's training report |
-| `/athlete-load` | Training load (CTL/ATL/TSB) |
-| `/athlete-debrief` | Post-workout coaching debrief |
-| `/athlete-goals` | Annual goal progress |
+| `/athlete-status` | Health check — Strava, Oura, Telegram, last activity |
 
 ---
 
