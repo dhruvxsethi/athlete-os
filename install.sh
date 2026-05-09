@@ -1,8 +1,9 @@
 #!/bin/bash
-# Athlete OS — installer
-# Uses Claude Code's plugin CLI directly.
+# Athlete OS — install / reinstall / update
 #
-# Usage (from inside the cloned repo):
+# Run this once to install, or again after git pull to update.
+#
+# Usage:
 #   bash install.sh
 
 set -e
@@ -12,10 +13,13 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 echo ""
 echo "Installing Athlete OS..."
 
-# Register this repo as a local marketplace (idempotent)
-claude plugin marketplace add "$DIR"
+# Clean up any previous install (idempotent — safe to run on fresh install)
+claude plugin uninstall athlete-os@athlete-os 2>/dev/null && echo "  Removed previous install" || true
+claude plugin uninstall athlete-os 2>/dev/null || true
+claude plugin marketplace remove athlete-os 2>/dev/null || true
 
-# Install the plugin from that marketplace
+# Register this repo as a marketplace and install fresh
+claude plugin marketplace add "$DIR"
 claude plugin install athlete-os
 
 echo ""
