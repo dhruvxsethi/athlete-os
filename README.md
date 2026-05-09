@@ -1,30 +1,39 @@
 # Athlete OS
 
-**Strava-powered fitness intelligence for Claude Code. Fully yours — own the MCP server, own the code.**
+**Strava-powered fitness intelligence for Claude Code.**
 
 Ask Claude things like:
 - *"What did I do this week?"*
-- *"Analyze my last cycling ride."*
-- *"How far have I run this year?"*
-- *"What was the weather like during my run?"*
+- *"Analyze my last run."*
+- *"How far have I cycled this year?"*
+- *"What was the weather like during my ride?"*
 - *"What's my half marathon PR?"*
-- *"Send my workout summary to Slack."*
 
 ---
 
 ## Install
 
+> Requires Node.js 18+. No npm install — zero dependencies.
+
 ```bash
 git clone https://github.com/dhruvxsethi/athlete-os && claude plugin install ./athlete-os
 ```
 
-Then in Claude:
+Then in Claude, say: **"Connect my Strava account"**
 
-> **"Connect my Strava account"**
+Claude will ask for your Client ID and Secret, open your browser to authorize, and save everything automatically. Done in under 2 minutes.
 
-Claude will walk you through getting your free API credentials and handle the OAuth flow in-chat. Done in under 2 minutes.
+---
 
-> **Requires Node.js 18+** — no npm install needed, zero external dependencies.
+## Updates
+
+Since the plugin runs from your local clone, updating is just:
+
+```bash
+cd athlete-os && git pull
+```
+
+No reinstall needed — Claude picks up changes immediately.
 
 ---
 
@@ -41,55 +50,37 @@ Claude will ask for these when you say "Connect my Strava account."
 
 ## Skills
 
-| Skill | Trigger |
-|-------|---------|
-| `oauth-setup` | "connect Strava" |
-| `latest-activity-analysis` | "analyze my last run" |
-| `weekly-training-summary` | "what did I do this week" |
-| `year-to-date-summary` | "how far have I run this year" |
-| `longest-activity-analysis` | "what was my longest ride" |
-| `race-event-detection` | "show me my races" |
-| `post-workout-debrief` | "I just finished a run" |
-| `heart-rate-pace-analysis` | "was I in zone 2" |
-| `weather-enrichment` | "what was the weather like" |
-| `team-leaderboard-summary` | "how is my club doing" |
-| `notification-summary` | "send to Slack" |
+| Skill | What to say |
+|-------|-------------|
+| Connect Strava | "connect my Strava account" |
+| Latest activity | "analyze my last run" |
+| Weekly summary | "what did I do this week" |
+| Year-to-date | "how far have I run this year" |
+| Longest effort | "what was my longest ride" |
+| Race history | "show me my races" |
+| Post-workout debrief | "I just finished a workout" |
+| Heart rate & pace | "was I in zone 2" |
+| Weather enrichment | "what was the weather like during my ride" |
 
 ## Commands
 
 | Command | Action |
 |---------|--------|
-| `/athlete-status` | Health check — connection, tokens, channels |
+| `/athlete-status` | Connection health check |
 | `/athlete-latest` | Analyze most recent activity |
 | `/athlete-weekly` | This week's training report |
 | `/athlete-ytd` | Year-to-date totals |
-| `/athlete-longest` | Find your biggest effort |
+| `/athlete-longest` | Your biggest effort |
 | `/athlete-race` | Race history and PRs |
-| `/athlete-notify` | Send summary to Slack / Telegram / email |
 
 ---
 
-## Notification Setup (Optional)
+## Privacy
 
-Add any of these to your shell environment or `.env` file:
-
-```bash
-# Slack
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
-
-# Telegram
-TELEGRAM_BOT_TOKEN=1234567890:ABCdef...
-TELEGRAM_CHAT_ID=987654321
-
-# Email (Gmail app password)
-EMAIL_SMTP_HOST=smtp.gmail.com
-EMAIL_USERNAME=you@gmail.com
-EMAIL_PASSWORD=your-app-password
-EMAIL_FROM=you@gmail.com
-EMAIL_TO=you@gmail.com
-```
-
-See `docs/setup-guide.md` for full instructions.
+- Credentials saved to `~/.config/athlete-os/credentials.json` — gitignored, never committed
+- GPS coordinates never leave your machine
+- Read-only Strava access
+- No telemetry, no third-party data collection
 
 ---
 
@@ -98,36 +89,16 @@ See `docs/setup-guide.md` for full instructions.
 ```
 athlete-os/
 ├── .claude-plugin/plugin.json   # Plugin manifest
-├── .mcp.json                    # MCP server config
+├── .mcp.json                    # MCP server (points to local server)
 ├── mcp-server/
 │   ├── index.js                 # Strava MCP server — zero dependencies
 │   └── oauth.js                 # OAuth helper — zero dependencies
-├── skills/                      # 11 Claude skills
-├── commands/                    # 7 slash commands
-└── docs/                        # Setup guide, privacy policy, roadmap
+├── skills/                      # Claude skills
+└── commands/                    # Slash commands
 ```
-
----
-
-## Privacy
-
-- GPS coordinates never leave your machine
-- Credentials saved to `~/.config/athlete-os/credentials.json` — gitignored, never committed
-- No telemetry, no analytics, no third-party data collection
-- Read-only Strava access
-
-Full details: [docs/privacy-security.md](docs/privacy-security.md)
-
----
-
-## Roadmap
-
-Garmin, Apple Health, Google Calendar, TrainingPeaks, Oura, race prediction, AI coaching mode.
-
-See [docs/roadmap.md](docs/roadmap.md).
 
 ---
 
 ## License
 
-MIT — fork it, modify it, make it yours.
+MIT — fork it, make it yours.
