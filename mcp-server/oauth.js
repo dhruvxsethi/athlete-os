@@ -117,6 +117,8 @@ async function run() {
       }
 
       if (code) {
+        // Send the success page, wait for it to fully flush, then resolve.
+        // This ensures the browser gets the response before we close the server.
         res.writeHead(200, { "Content-Type": "text/html" });
         res.end(`
           <html><body style="font-family:system-ui;text-align:center;padding:80px;background:#080808;color:#fff">
@@ -124,9 +126,10 @@ async function run() {
             <h2 style="color:#FC4C02;margin-bottom:8px">Athlete OS connected!</h2>
             <p style="color:rgba(255,255,255,0.4)">You can close this tab and return to Claude.</p>
           </body></html>
-        `);
-        server.close();
-        resolve(code);
+        `, () => {
+          server.close();
+          resolve(code);
+        });
       }
     });
 
@@ -175,6 +178,7 @@ async function run() {
   console.log(`\n✅  Connected as: ${athlete.firstname} ${athlete.lastname}`);
   console.log(`✅  Credentials saved to: ${CREDS_FILE}`);
   console.log("\n   Return to Claude and ask: \"What did I do this week?\"\n");
+  process.exit(0); // Ensure we exit even if stdin keeps the event loop alive
 }
 
 run().catch(err => {
