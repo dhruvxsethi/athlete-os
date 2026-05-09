@@ -28,10 +28,10 @@ Claude will ask for your Client ID and Secret and handle the OAuth flow in-chat.
 ## Updates
 
 ```bash
-cd athlete-os && git pull
+cd athlete-os && git pull && claude plugin update athlete-os
 ```
 
-No reinstall needed.
+The plugin is cached by Claude Code, so `git pull` alone isn't enough — you need `claude plugin update` to push the new files into the cache. No reinstall or restart needed.
 
 ---
 
