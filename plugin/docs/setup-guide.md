@@ -1,151 +1,86 @@
 # Athlete OS — Setup Guide
 
-This guide walks you through getting Athlete OS fully connected in under 10 minutes.
+Get Athlete OS running in under 5 minutes.
 
 ---
 
 ## Step 1: Get Your Strava API Credentials
 
-1. Go to https://www.strava.com/settings/api while logged into your Strava account.
-2. Fill in the **Create App** form:
-   - **Application Name:** `Athlete OS` (or any name you like)
+1. Go to **strava.com/settings/api** (must be logged in to Strava).
+2. Click **Create App** and fill in:
+   - **Application Name:** `Athlete OS` (any name)
    - **Category:** `Data Importer`
-   - **Club:** leave blank
-   - **Website:** `http://localhost` (required, can be anything valid)
+   - **Website:** `http://localhost`
    - **Authorization Callback Domain:** `localhost`
 3. Click **Create** and agree to the API terms.
-4. You'll see your app's **Client ID** and **Client Secret** — copy both.
+4. Copy your **Client ID** (a short number) and **Client Secret** (a long string).
 
 ---
 
-## Step 2: Get Your Access Token and Refresh Token
-
-Strava uses OAuth 2.0. The quickest way to get tokens for personal use:
-
-### Option A: Use the Strava Token Exchange Tool (easiest)
-
-Visit this URL in your browser (replace `YOUR_CLIENT_ID`):
-
-```
-https://www.strava.com/oauth/authorize?client_id=YOUR_CLIENT_ID&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=read,activity:read_all,profile:read_all
-```
-
-1. Click **Authorize** on the Strava page.
-2. You'll be redirected to `localhost` — the URL will contain `?code=XXXXXXXX`. Copy that code.
-3. Exchange the code for tokens via curl:
-
-```bash
-curl -X POST https://www.strava.com/api/v3/oauth/token \
-  -d client_id=YOUR_CLIENT_ID \
-  -d client_secret=YOUR_CLIENT_SECRET \
-  -d code=YOUR_CODE \
-  -d grant_type=authorization_code
-```
-
-4. The response contains `access_token` and `refresh_token`. Copy both.
-
-### Option B: Use an OAuth Helper Script
-
-The `@r-huijts/strava-mcp-server` package includes a setup flow. Run:
-
-```bash
-npx @r-huijts/strava-mcp-server --setup
-```
-
-Follow the prompts to complete OAuth authorization.
-
----
-
-## Step 3: Configure Environment Variables
-
-Copy the example env file:
-
-```bash
-cp docs/.env.example .env
-```
-
-Fill in your values:
-
-```bash
-STRAVA_CLIENT_ID=your_client_id
-STRAVA_CLIENT_SECRET=your_client_secret
-STRAVA_ACCESS_TOKEN=your_access_token
-STRAVA_REFRESH_TOKEN=your_refresh_token
-```
-
----
-
-## Step 4: Install the Plugin in Claude Code
+## Step 2: Install the Plugin
 
 From the `athlete-os/` directory:
 
 ```bash
-claude plugin install .
+bash install.sh
 ```
 
-Or install from the packaged `.plugin` file:
-
-```bash
-claude plugin install athlete-os.plugin
-```
+When it finishes, **fully quit Claude Code** (⌘Q on Mac) and reopen it. Closing a window isn't enough — the MCP server loads on startup.
 
 ---
 
-## Step 5: Optional — Configure Notification Connectors
+## Step 3: Connect Strava
 
-To enable `/athlete-notify`:
+In Claude, say:
 
-**Slack:**
-```bash
-export SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."
 ```
-See `notifications/templates/slack-webhook.md` for full setup.
-
-**Telegram:**
-```bash
-export TELEGRAM_BOT_TOKEN="..."
-export TELEGRAM_CHAT_ID="..."
+Connect my Strava account
 ```
-See `notifications/templates/telegram-bot.md` for full setup.
 
-**Email:**
-```bash
-export EMAIL_SMTP_HOST="smtp.gmail.com"
-export EMAIL_USERNAME="you@gmail.com"
-export EMAIL_PASSWORD="your-app-password"
-export EMAIL_TO="you@gmail.com"
-```
-See `notifications/templates/email-summary.md` for full setup.
+Claude will ask for your Client ID and Secret, then open your browser for Strava authorization. The OAuth callback is caught locally on port 8888. The whole flow takes about 60 seconds and saves credentials to `~/.config/athlete-os/credentials.json`.
 
 ---
 
-## Step 6: Test Your Connection
-
-Open Claude Code and try:
+## Step 4: Verify
 
 ```
 Check my Strava connection
 ```
 
-Then:
+You should see your name. Then try:
 
 ```
 What did I do this week?
 ```
 
-If you see your activities, you're all set.
-
 ---
 
 ## Troubleshooting
 
-**"No activities found"**
-- Ensure `STRAVA_ACCESS_TOKEN` is set and not expired. Access tokens expire after 6 hours; the MCP server uses `STRAVA_REFRESH_TOKEN` to automatically refresh.
+| Problem | Fix |
+|---------|-----|
+| "Not connected" after setup | Fully quit Claude Code (⌘Q) and reopen — MCP server loads on startup |
+| Port 8888 already in use | `lsof -ti :8888 \| xargs kill` then retry connection |
+| "Invalid client" error | Double-check Client ID and Secret — no extra spaces |
+| "Redirect URI mismatch" | Ensure callback domain in Strava settings is exactly `localhost` |
+| Browser doesn't open | Copy the URL printed in the terminal and open it manually |
+| Plugin not found | Run `bash install.sh` again from the repo root |
 
-**"Unauthorized" error**
-- Double-check your `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET`.
-- Ensure the OAuth scope included `activity:read_all`.
+---
 
-**MCP server not connecting**
-- Make sure Node.js (v18+) and npx are installed: `node --version && npx --version`.
-- Try running the server manually: `npx @r-huijts/strava-mcp-server` and check for errors.
+## Scheduled Routines (optional)
+
+To get automated weekly summaries and monthly reports, say: **"Set up my training routines"**
+
+Routines run in Claude's cloud, so they need your Strava credentials as environment variables. Run:
+
+```bash
+cat ~/.config/athlete-os/credentials.json
+```
+
+Then go to **claude.ai/settings → Routines → Environment variables** and add:
+- `STRAVA_CLIENT_ID`
+- `STRAVA_CLIENT_SECRET`
+- `STRAVA_REFRESH_TOKEN`
+
+Skip `STRAVA_ACCESS_TOKEN` — it expires every 6 hours and gets refreshed automatically.

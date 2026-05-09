@@ -13,6 +13,10 @@ import { join } from "path";
 // Stored at ~/.config/athlete-os/credentials.json
 // Written by oauth.js after the user authorizes. Read fresh on every tool call.
 
+// In-memory token cache for remote-agent (env-var) mode.
+// Prevents a fresh OAuth exchange on every tool call when running in cloud.
+let _envTokenCache = null; // { access_token, refresh_token, expires_at }
+
 const CREDS_DIR = join(homedir(), ".config", "athlete-os");
 const CREDS_FILE = join(CREDS_DIR, "credentials.json");
 
@@ -27,8 +31,17 @@ function loadCredentials() {
     };
   }
   // 2. Refresh-token-only env vars (remote agents / scheduled routines)
-  //    No access token — we'll get one via refresh on first API call.
+  //    Use in-memory cache if unexpired to avoid a refresh on every call.
   if (process.env.STRAVA_REFRESH_TOKEN && process.env.STRAVA_CLIENT_ID) {
+    const now = Date.now() / 1000;
+    if (_envTokenCache && now < _envTokenCache.expires_at - 300) {
+      return {
+        client_id: process.env.STRAVA_CLIENT_ID,
+        client_secret: process.env.STRAVA_CLIENT_SECRET,
+        access_token: _envTokenCache.access_token,
+        refresh_token: _envTokenCache.refresh_token,
+      };
+    }
     return {
       client_id: process.env.STRAVA_CLIENT_ID,
       client_secret: process.env.STRAVA_CLIENT_SECRET,
@@ -46,6 +59,59 @@ function loadCredentials() {
 function saveCredentials(creds) {
   mkdirSync(CREDS_DIR, { recursive: true });
   writeFileSync(CREDS_FILE, JSON.stringify(creds, null, 2), "utf8");
+}
+
+// ─── Oura API ─────────────────────────────────────────────────────────────────
+
+function loadOuraToken() {
+  if (process.env.OURA_ACCESS_TOKEN) return process.env.OURA_ACCESS_TOKEN;
+  if (existsSync(CREDS_FILE)) {
+    try { return JSON.parse(readFileSync(CREDS_FILE, "utf8")).oura_access_token || null; } catch {}
+  }
+  return null;
+}
+
+const OURA_BASE = "https://api.ouraring.com/v2/usercollection";
+
+async function ouraGet(token, path, params = {}) {
+  const url = new URL(`${OURA_BASE}${path}`);
+  for (const [k, v] of Object.entries(params)) {
+    if (v != null) url.searchParams.set(k, String(v));
+  }
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(`Oura API ${res.status} at ${path}: ${await res.text()}`);
+  return res.json();
+}
+
+// ─── Telegram ─────────────────────────────────────────────────────────────────
+
+function loadTelegramConfig() {
+  if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID)
+    return { token: process.env.TELEGRAM_BOT_TOKEN, chatId: process.env.TELEGRAM_CHAT_ID };
+  if (existsSync(CREDS_FILE)) {
+    try {
+      const c = JSON.parse(readFileSync(CREDS_FILE, "utf8"));
+      if (c.telegram_bot_token && c.telegram_chat_id)
+        return { token: c.telegram_bot_token, chatId: c.telegram_chat_id };
+    } catch {}
+  }
+  return null;
+}
+
+// ─── Goals ────────────────────────────────────────────────────────────────────
+
+const GOALS_FILE = join(CREDS_DIR, "goals.json");
+
+function loadGoals() {
+  if (existsSync(GOALS_FILE)) {
+    try { return JSON.parse(readFileSync(GOALS_FILE, "utf8")); } catch {}
+  }
+  return { goals: [] };
+}
+
+function saveGoals(data) {
+  mkdirSync(CREDS_DIR, { recursive: true });
+  writeFileSync(GOALS_FILE, JSON.stringify(data, null, 2), "utf8");
 }
 
 // ─── Strava API client ────────────────────────────────────────────────────────
@@ -100,10 +166,16 @@ async function refreshToken(creds) {
     }),
   });
   if (!res.ok) throw new Error(`Token refresh failed: ${res.status}`);
-  return res.json();
+  const data = await res.json();
+  // Cache for env-var mode — remote agents can't write to disk
+  if (process.env.STRAVA_REFRESH_TOKEN && data.expires_at) {
+    _envTokenCache = { access_token: data.access_token, refresh_token: data.refresh_token, expires_at: data.expires_at };
+  }
+  return data;
 }
 
 // ─── Tool definitions ─────────────────────────────────────────────────────────
+// Strava tools first, then Oura, Telegram, Goals at the end.
 
 const TOOLS = [
   {
@@ -242,12 +314,91 @@ const TOOLS = [
     inputSchema: {
       type: "object",
       properties: {
-        latitude: { type: "number", description: "Activity start latitude" },
-        longitude: { type: "number", description: "Activity start longitude" },
+        latitude: { type: "number", description: "Activity start latitude — use start_latlng[0] from activity data" },
+        longitude: { type: "number", description: "Activity start longitude — use start_latlng[1] from activity data" },
         date: { type: "string", description: "Date in YYYY-MM-DD format" },
         hour: { type: "number", description: "Hour of day (0-23) the activity started" },
       },
       required: ["latitude", "longitude", "date"],
+    },
+  },
+
+  // ── Oura ──────────────────────────────────────────────────────────────────
+  {
+    name: "check-oura-connection",
+    description: "Check if Oura Ring is connected. Returns today's readiness score if connected.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "get-oura-readiness",
+    description: "Get Oura daily readiness scores and HRV for a date range. Includes overall readiness, HRV balance, sleep score, recovery index.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        start_date: { type: "string", description: "Start date YYYY-MM-DD" },
+        end_date: { type: "string", description: "End date YYYY-MM-DD (default: today)" },
+      },
+      required: ["start_date"],
+    },
+  },
+  {
+    name: "get-oura-sleep",
+    description: "Get Oura sleep data for a date range: total sleep duration, deep/REM/light breakdown, sleep score, HRV during sleep.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        start_date: { type: "string", description: "Start date YYYY-MM-DD" },
+        end_date: { type: "string", description: "End date YYYY-MM-DD (default: today)" },
+      },
+      required: ["start_date"],
+    },
+  },
+
+  // ── Telegram ──────────────────────────────────────────────────────────────
+  {
+    name: "send-telegram",
+    description: "Send a text message to the athlete's configured Telegram bot. Use for training summaries and notifications. Plain text only.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        message: { type: "string", description: "Message text to send. Plain text, no Markdown." },
+      },
+      required: ["message"],
+    },
+  },
+
+  // ── Goals ──────────────────────────────────────────────────────────────────
+  {
+    name: "set-goal",
+    description: "Save a training goal for the year. Replaces an existing goal for the same sport+metric+year.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sport: { type: "string", description: "Sport: Run, Ride, or Swim" },
+        metric: { type: "string", description: "What to track: distance_km, distance_miles, time_hours, or activities" },
+        target: { type: "number", description: "Target value" },
+        year: { type: "number", description: "Goal year (default: current year)" },
+        label: { type: "string", description: "Short label, e.g. '1000km running'" },
+      },
+      required: ["sport", "metric", "target"],
+    },
+  },
+  {
+    name: "get-goals",
+    description: "Retrieve all stored training goals from disk.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "delete-goal",
+    description: "Delete a stored training goal by sport, metric, and year.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        sport: { type: "string", description: "Sport: Run, Ride, or Swim" },
+        metric: { type: "string", description: "Metric: distance_km, distance_miles, time_hours, or activities" },
+        year: { type: "number", description: "Goal year" },
+      },
+      required: ["sport", "metric", "year"],
     },
   },
 ];
@@ -306,7 +457,8 @@ async function callTool(name, args) {
     case "get-all-activities": {
       const all = [];
       let page = 1;
-      while (true) {
+      const MAX_PAGES = 25; // hard cap at 5000 activities
+      while (page <= MAX_PAGES) {
         const batch = await stravaGet(creds, "/athlete/activities", {
           after: args.after,
           before: args.before,
@@ -384,6 +536,81 @@ async function callTool(name, args) {
       };
     }
 
+    // ── Oura ────────────────────────────────────────────────────────────────
+    case "check-oura-connection": {
+      const token = loadOuraToken();
+      if (!token) return { connected: false, message: "Oura not connected. Say 'connect my Oura' to set it up." };
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+        const data = await ouraGet(token, "/daily_readiness", { start_date: yesterday, end_date: today });
+        const latest = data.data?.[data.data.length - 1];
+        return { connected: true, readiness_score: latest?.score, date: latest?.day };
+      } catch (e) {
+        return { connected: false, error: e.message };
+      }
+    }
+
+    case "get-oura-readiness": {
+      const token = loadOuraToken();
+      if (!token) throw new Error("Oura not connected. Say 'connect my Oura' to set it up.");
+      const today = new Date().toISOString().slice(0, 10);
+      return ouraGet(token, "/daily_readiness", {
+        start_date: args.start_date,
+        end_date: args.end_date ?? today,
+      });
+    }
+
+    case "get-oura-sleep": {
+      const token = loadOuraToken();
+      if (!token) throw new Error("Oura not connected. Say 'connect my Oura' to set it up.");
+      const today = new Date().toISOString().slice(0, 10);
+      return ouraGet(token, "/daily_sleep", {
+        start_date: args.start_date,
+        end_date: args.end_date ?? today,
+      });
+    }
+
+    // ── Telegram ────────────────────────────────────────────────────────────
+    case "send-telegram": {
+      const tg = loadTelegramConfig();
+      if (!tg) throw new Error("Telegram not configured. Say 'set up Telegram' to connect it.");
+      const res = await fetch(`https://api.telegram.org/bot${tg.token}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: tg.chatId, text: args.message }),
+      });
+      if (!res.ok) throw new Error(`Telegram API ${res.status}: ${await res.text()}`);
+      return { sent: true };
+    }
+
+    // ── Goals ────────────────────────────────────────────────────────────────
+    case "set-goal": {
+      const year = args.year ?? new Date().getFullYear();
+      const data = loadGoals();
+      const idx = data.goals.findIndex(
+        g => g.sport === args.sport && g.metric === args.metric && g.year === year
+      );
+      const goal = { sport: args.sport, metric: args.metric, target: args.target, year, label: args.label ?? null };
+      if (idx >= 0) data.goals[idx] = goal;
+      else data.goals.push(goal);
+      saveGoals(data);
+      return { saved: true, goal };
+    }
+
+    case "get-goals":
+      return loadGoals();
+
+    case "delete-goal": {
+      const data = loadGoals();
+      const before = data.goals.length;
+      data.goals = data.goals.filter(
+        g => !(g.sport === args.sport && g.metric === args.metric && g.year === args.year)
+      );
+      saveGoals(data);
+      return { deleted: before - data.goals.length > 0, remaining: data.goals.length };
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -439,7 +666,7 @@ function dispatch() {
     if (buf.length < start + len) return;
     const body = buf.slice(start, start + len).toString("utf8");
     buf = buf.slice(start + len);
-    try { handle(JSON.parse(body)); } catch {}
+    try { handle(JSON.parse(body)); } catch (e) { process.stderr.write(`[athlete-os] parse error: ${e.message}\n`); }
   }
 }
 

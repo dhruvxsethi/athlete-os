@@ -2,26 +2,32 @@
 
 **Triathlon training intelligence inside Claude. Powered by Strava.**
 
-Ask Claude things like:
-- *"How was my long ride yesterday?"*
-- *"What did I do this week — show me by sport."*
-- *"Am I spending enough time in zone 2?"*
-- *"How has my run volume changed over the last 3 months?"*
-- *"Set up a weekly summary every Monday morning."*
+No dashboards. No browser tabs. Ask Claude anything about your training and get coaching-quality answers in the conversation.
+
+```
+"How was my long ride yesterday?"
+"What did I do this week — show me by sport."
+"Am I spending enough time in zone 2?"
+"What's my training load looking like?"
+"How far am I toward my annual running goal?"
+"Send my weekly summary to Telegram."
+```
 
 ---
 
 ## Install
 
-> Requires Node.js 18+. Zero dependencies — no npm install.
+> Requires **Node.js 18+**. Zero npm dependencies.
 
 ```bash
 git clone https://github.com/dhruvxsethi/athlete-os && cd athlete-os && bash install.sh
 ```
 
-Restart Claude Code, then say: **"Connect my Strava account"**
+Quit Claude Code completely (⌘Q on Mac — closing a window isn't enough), reopen it, then say:
 
-Claude will ask for your Client ID and Secret and handle the OAuth flow in-chat. Done in 2 minutes.
+**"Connect my Strava account"**
+
+Claude walks you through the whole thing in-chat. Takes about 2 minutes.
 
 ---
 
@@ -31,7 +37,69 @@ Claude will ask for your Client ID and Secret and handle the OAuth flow in-chat.
 cd athlete-os && git pull && bash install.sh
 ```
 
-Running `install.sh` again handles everything — cleans up the old install and reinstalls fresh. Quit and reopen Claude Code after.
+Running `install.sh` again cleans up the old version and reinstalls fresh. Quit and reopen Claude Code after.
+
+---
+
+## What's included
+
+### Skills (say these naturally)
+
+| What to say | What happens |
+|-------------|--------------|
+| "Connect my Strava account" | Full OAuth setup — Client ID, Secret, browser auth, token save |
+| "How was my last workout?" | Deep debrief — splits, HR zones, weather, coaching note |
+| "What did I do this week?" | Sport totals, highlights, HR trend, weekly assessment |
+| "What's my training load?" | CTL/ATL/TSB performance chart, 6-week trend, recovery state |
+| "How far am I toward my goal?" | Annual distance goal progress with year-end projection |
+| "Show me last 3 months" | Volume trends by sport with unicode bar charts |
+| "Connect my Oura Ring" | Recovery scores and HRV woven into every analysis |
+| "Set up Telegram notifications" | Post-workout debriefs and summaries sent to your phone |
+| "Set up my routines" | Automated check-ins on a schedule (see below) |
+
+### Commands (slash commands)
+
+| Command | Action |
+|---------|--------|
+| `/athlete-status` | Full health check — Strava, Oura, Telegram, last activity |
+| `/athlete-latest` | Analyze most recent activity |
+| `/athlete-weekly` | This week's training report |
+| `/athlete-load` | Training load (CTL/ATL/TSB) |
+| `/athlete-debrief` | Post-workout coaching debrief |
+| `/athlete-goals` | Annual goal progress |
+
+---
+
+## Automated Routines
+
+Say **"set up my routines"** and pick from:
+
+| Routine | Schedule | What it does |
+|---------|----------|--------------|
+| After every workout | Hourly check | Detects new activities, sends debrief to Telegram |
+| Daily briefing | Every morning | Training load + Oura readiness + today's recommendation |
+| Weekly summary | Monday morning | Full week breakdown across all sports |
+| Monthly trends | 1st of each month | 3-month volume trends with charts |
+
+All routines can optionally deliver to Telegram. For cloud scheduling you'll need to add env vars at **claude.ai/settings → Routines → Environment variables** (see `.env.example`).
+
+---
+
+## Integrations
+
+### Oura Ring
+Say **"Connect my Oura Ring"** — you'll need a personal access token from [cloud.ouraring.com/personal-access-tokens](https://cloud.ouraring.com/personal-access-tokens). No OAuth flow, just a token.
+
+Once connected, readiness scores and HRV data are automatically woven into:
+- Training load analysis (readiness shown alongside CTL/ATL/TSB)
+- Post-workout debrief (flags elevated HR relative to low HRV)
+- Weekly summary (recovery quality for the week)
+- Daily briefings
+
+### Telegram
+Say **"Set up Telegram notifications"** — you'll create a free bot via @BotFather and get your chat ID from @userinfobot.
+
+Once connected, any summary or debrief can be pushed to your phone. Works with all automated routines.
 
 ---
 
@@ -40,44 +108,39 @@ Running `install.sh` again handles everything — cleans up the old install and 
 1. Go to [strava.com/settings/api](https://www.strava.com/settings/api)
 2. Click **Create App**
 3. Fill in: any name, category "Data Importer", website `http://localhost`, callback domain **`localhost`**
-4. Copy your **Client ID** and **Client Secret**
+4. Copy your **Client ID** (a number) and **Client Secret** (a long string)
 
 ---
 
-## Skills
+## Full Reset
 
-| Skill | What to say |
-|-------|-------------|
-| Connect Strava | "connect my Strava account" |
-| Latest activity | "how was my ride yesterday" |
-| Weekly summary | "what did I do this week" |
-| Pace & zone distribution | "am I in zone 2 enough" |
-| Monthly trends | "show me my last 3 months" |
-| Setup routines | "automate my weekly summary" |
+To wipe everything and start completely fresh:
 
-## Commands
+```bash
+# 1. Remove credentials
+rm -f ~/.config/athlete-os/credentials.json
 
-| Command | Action |
-|---------|--------|
-| `/athlete-status` | Connection health check |
-| `/athlete-latest` | Analyze most recent activity |
-| `/athlete-weekly` | This week's training report |
+# 2. Uninstall plugin
+claude plugin uninstall athlete-os@athlete-os 2>/dev/null || true
+claude plugin uninstall athlete-os 2>/dev/null || true
+claude plugin marketplace remove athlete-os 2>/dev/null || true
 
----
+# 3. Remove the repo
+cd ~ && rm -rf path/to/athlete-os
 
-## Automated Routines
+# 4. Fresh clone and install
+git clone https://github.com/dhruvxsethi/athlete-os && cd athlete-os && bash install.sh
 
-Say **"set up my weekly routine"** and Claude will schedule:
-- Weekly training summary — every Monday morning
-- Monthly trends — 1st of each month
-
-Runs automatically in Claude Code. No prompting needed.
+# 5. Quit Claude Code completely (⌘Q), then reopen
+# 6. Say: "Connect my Strava account"
+```
 
 ---
 
 ## Privacy
 
-- Credentials saved to `~/.config/athlete-os/credentials.json` — never committed
+- All credentials saved locally to `~/.config/athlete-os/credentials.json` — never committed, never sent anywhere
+- Goals saved to `~/.config/athlete-os/goals.json` — local only
 - Read-only Strava access
 - No telemetry, no third-party data collection
 

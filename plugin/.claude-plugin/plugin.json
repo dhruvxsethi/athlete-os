@@ -1,6 +1,6 @@
 {
   "name": "athlete-os",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Triathlon training intelligence powered by Strava. Analyze workouts, track trends, and get coaching feedback — all inside Claude.",
   "author": {
     "name": "Athlete OS"

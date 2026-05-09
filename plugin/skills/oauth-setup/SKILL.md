@@ -1,14 +1,15 @@
 ---
 name: oauth-setup
-description: Guides the user through connecting their Strava account to Athlete OS. Use when the user asks how to connect Strava, set up the plugin, get their API credentials, or when tool calls fail with authorization errors.
+description: Guides the user through connecting their Strava account to Athlete OS. Use when the user asks how to connect Strava, set up the plugin, or when tool calls fail with authorization errors.
 triggers:
   - "connect Strava"
+  - "connect my Strava"
   - "set up Athlete OS"
   - "how do I connect"
   - "Strava not connected"
-  - "get API credentials"
   - "authorization error"
   - "set up credentials"
+  - "link my Strava"
 ---
 
 # Strava OAuth Setup
@@ -19,7 +20,7 @@ Credentials are saved to `~/.config/athlete-os/credentials.json`.
 
 ## Finding the plugin path
 
-The plugin is installed in Claude's cache, not the user's project folder. Always resolve the path before running any oauth.js commands:
+Always resolve this first — the plugin lives in Claude's cache, not the user's project folder:
 
 ```bash
 ATHLETE_OS_PATH=$(node -e "
@@ -27,25 +28,16 @@ const d = JSON.parse(require('fs').readFileSync(require('os').homedir() + '/.cla
 const entry = Object.entries(d.plugins).find(([k]) => k.startsWith('athlete-os'));
 console.log(entry ? entry[1][0].installPath : '');
 ")
-echo $ATHLETE_OS_PATH
+echo "Plugin path: $ATHLETE_OS_PATH"
 ```
 
-Use `$ATHLETE_OS_PATH/mcp-server/oauth.js` for all subsequent commands.
+If this prints an empty path, the plugin isn't installed — tell the user to run `bash install.sh` from the repo.
 
-## Steps
+## Step 1 — Check if already connected
 
-### 1. Check if already connected
+Call `check-strava-connection`. If it returns a name, they're already connected — confirm and offer to reconnect only if they explicitly want to.
 
-First try the MCP tool directly — call `check-strava-connection`. If it returns a name, they're already connected. Confirm and offer to reconnect if they want.
-
-If the MCP tool isn't available yet, run:
-```bash
-node "$ATHLETE_OS_PATH/mcp-server/oauth.js" --check 2>/dev/null
-```
-
-If it prints `connected:<name>` — already set up. If `not_connected` or `token_expired` — proceed.
-
-### 2. Explain what they need
+## Step 2 — Get Strava API credentials
 
 Tell the user:
 
@@ -55,36 +47,57 @@ Tell the user:
 > 3. Fill in: any name, category "Data Importer", website `http://localhost`, callback domain **`localhost`**
 > 4. Copy the **Client ID** (a number) and **Client Secret** (a long string)"
 
-### 3. Ask for credentials inline
+## Step 3 — Ask for credentials
 
-Ask one at a time:
+Ask one at a time in the chat:
 
 > "What's your Strava **Client ID**?"
 
-Wait, then:
+Wait for the answer, then:
 
 > "And your **Client Secret**?"
 
-### 4. Run the OAuth helper
+## Step 4 — Run the OAuth helper
+
+Pass credentials as env vars so the script runs in auto mode (no readline prompts):
 
 ```bash
 STRAVA_CLIENT_ID=<their_id> STRAVA_CLIENT_SECRET=<their_secret> node "$ATHLETE_OS_PATH/mcp-server/oauth.js"
 ```
 
-This opens their browser, catches the OAuth callback on localhost:8888, exchanges the code for tokens, and saves to `~/.config/athlete-os/credentials.json`. The MCP server picks up credentials immediately — no restart needed.
+This opens their browser, catches the OAuth callback on localhost:8888, exchanges the code for tokens, and saves to `~/.config/athlete-os/credentials.json`.
 
-### 5. Verify
+**Important:** Do NOT pipe anything to stdin. The env vars make it auto mode — it requires no interactive input at all.
 
-Call `check-strava-connection`. If it returns the athlete's name:
+## Step 5 — Verify
 
-> "✅ Connected as [Name]! Ask me anything about your training."
+Call `check-strava-connection`. If it returns the athlete's name, connection is confirmed.
+
+## Step 6 — Offer integrations
+
+Immediately after confirming Strava is connected, use AskUserQuestion:
+- Question: "Strava is connected! Want to set up any of these now? (you can always do them later)"
+- Header: "Optional integrations"
+- multiSelect: true
+- Options:
+  - "Oura Ring — recovery scores and HRV woven into every analysis"
+  - "Telegram — get summaries sent to your phone automatically"
+  - "Skip for now"
+
+If they select **Oura Ring** → invoke `oura-setup` skill immediately.
+If they select **Telegram** → invoke `telegram-setup` skill immediately.
+If they select **Skip** or nothing → say: "No problem — say 'connect my Oura' or 'set up Telegram notifications' anytime."
+
+After all setup completes:
+> "You're all set. Try: 'What did I do this week?' or '/athlete-latest'"
 
 ## Error Handling
 
 | Error | Fix |
 |-------|-----|
+| Plugin path is empty | Plugin not installed — run `bash install.sh` from the repo |
 | Port 8888 in use | `lsof -ti :8888 \| xargs kill` then retry |
 | "Invalid client" | Double-check Client ID and Secret — no extra spaces |
 | "Redirect URI mismatch" | Ensure callback domain in Strava settings is exactly `localhost` |
 | Browser doesn't open | Copy the URL printed in the terminal and open manually |
-| `ATHLETE_OS_PATH` is empty | Plugin not installed — run `bash install.sh` from the cloned repo |
+| Script exits immediately | Make sure you're passing STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET as env vars |

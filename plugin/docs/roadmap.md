@@ -1,47 +1,46 @@
 # Athlete OS — Roadmap
 
-## Current Version: 0.1.0 (MVP)
+## Current Version: 0.3.0
 
 ### What's Included
 
-- Strava MCP integration (read-only)
-- 9 skills: latest activity, weekly report, YTD, longest activity, race detection, post-workout debrief, team leaderboard, HR/pace analysis, notifications
-- 6 slash commands
-- Notification scaffolding: Slack, Telegram, email
-- Privacy-first defaults
+- Strava MCP integration (read-only, zero npm dependencies)
+- Weather enrichment via Open-Meteo (no API key required)
+- Oura Ring integration (readiness, HRV, sleep)
+- Telegram notifications (automated summaries via bot)
+- Annual goal tracking with year-end projections
+- Performance Management Chart (CTL/ATL/TSB training load model)
+- 11 skills: oauth-setup, oura-setup, telegram-setup, latest-activity-analysis, post-workout-debrief, weekly-training-summary, monthly-trends, pace-distribution, training-load, goal-tracking, setup-routines
+- 6 slash commands: /athlete-latest, /athlete-debrief, /athlete-weekly, /athlete-load, /athlete-goals, /athlete-status
 
 ---
 
-## Near-Term (0.2.0)
+## Near-Term (0.4.0)
 
-- [ ] **Garmin Connect integration** — sync activities from Garmin devices (power data, running dynamics, sleep/recovery)
-- [ ] **Automated weekly digest** — schedule a weekly report to send automatically every Monday morning
-- [ ] **Training load tracking** — TSS/ATL/CTL model for fitness and fatigue trends
-- [ ] **Goal tracking** — set annual distance goals and track progress automatically
+- [ ] **Whoop integration** — recovery scores and strain via OAuth API
+- [ ] **Year-to-date summary** — full-year breakdown with month-by-month progress bars
 - [ ] **Pace calculator** — "What pace do I need to run a 4-hour marathon?"
+- [ ] **Race prediction** — estimate finish time for upcoming races based on recent training
+- [ ] **Segment leaderboard tracking** — monitor KOMs and segment PRs over time
 
 ---
 
-## Medium-Term (0.3.0)
+## Medium-Term (0.5.0)
 
-- [ ] **Apple Health integration** — pull VO2 max, resting HR, sleep data from Apple Health to enrich analysis
-- [ ] **Google Calendar integration** — add upcoming races to calendar, block training days
-- [ ] **Weather enrichment** — pull historical weather for each activity (temperature, wind, humidity) to contextualize performance
-- [ ] **Strava write support** — update activity descriptions, add kudos, create manual activities
-- [ ] **Photo summaries** — include activity photos in shared summaries
+- [ ] **Garmin Connect integration** — sync power data, running dynamics, sleep/recovery
+- [ ] **Apple Health integration** — VO2 max, resting HR, sleep data
+- [ ] **Strava write support** — update activity descriptions, create manual activities
+- [ ] **Google Calendar integration** — block training days, add race events
 
 ---
 
 ## Longer-Term
 
 - [ ] **TrainingPeaks sync** — import structured training plans and track compliance
-- [ ] **Oura / Whoop integration** — correlate recovery scores with training load
-- [ ] **AI coaching mode** — multi-week training plan generation based on goal and current fitness
-- [ ] **Segment leaderboard tracking** — monitor KOMs and segment PRs over time
+- [ ] **AI coaching mode** — multi-week training plan generation based on goal and fitness
 - [ ] **Multi-athlete team dashboards** — aggregate stats for a running group or sports team
-- [ ] **Race prediction** — estimate finish time for upcoming races based on recent training
 - [ ] **Peloton / indoor trainer integration** — pull power data from indoor sessions
-- [ ] **Nutrition logging** — correlate fueling with performance data
+- [ ] **Notion / Google Sheets export** — training log database sync
 
 ---
 
@@ -49,16 +48,16 @@
 
 | Connector | Status | Notes |
 |-----------|--------|-------|
-| Strava | ✅ MVP | Read-only via MCP |
-| Slack | ✅ MVP | Webhook-based |
-| Telegram | ✅ MVP | Bot-based |
-| Email | ✅ MVP | SMTP template |
+| Strava | ✅ Live | Read-only via custom MCP server |
+| Open-Meteo weather | ✅ Live | Historical weather per activity, no API key |
+| Oura Ring | ✅ Live | Personal access token, readiness + sleep |
+| Telegram | ✅ Live | Bot-based, automated summaries |
+| Whoop | Planned | OAuth API |
 | Garmin Connect | Planned | OAuth API |
 | Apple Health | Planned | HealthKit XML export or shortcut |
 | Google Calendar | Planned | Google API OAuth |
 | TrainingPeaks | Planned | API access required |
-| Oura Ring | Planned | Personal API token |
-| Whoop | Planned | OAuth API |
+| Slack | Planned | Webhook-based |
 | Notion | Planned | Training log database |
 | Google Sheets | Planned | Activity log export |
 

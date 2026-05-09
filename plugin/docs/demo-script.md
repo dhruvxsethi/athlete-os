@@ -40,17 +40,22 @@ A guided walkthrough showcasing the core Athlete OS experience. Use this to demo
 
 ---
 
-## Minute 3: Intelligence & Sharing
+## Minute 3: Intelligence & Automation
 
 **Prompt:**
-> How far have I run this year?
+> What's my training load looking like right now?
 
-*Expected: Claude pulls YTD stats — total distance by sport, monthly breakdown, biggest week, milestones.*
+*Expected: Claude computes CTL, ATL, and TSB from your history, shows a 6-week trend chart, and gives a state label (Fresh / Building / Fatigued).*
 
 **Prompt:**
-> Write a post-workout summary for my last run and send it to Slack.
+> How far have I run this year vs my goal?
 
-*Expected: Claude generates a shareable summary (strips GPS, checks privacy), then either sends it via the Slack webhook or outputs the formatted message for manual copy.*
+*Expected: If goals are set, Claude shows a progress bar and year-end projection. If not, it prompts to set one.*
+
+**Prompt:**
+> Send my weekly summary to Telegram.
+
+*Expected: If Telegram is configured, Claude generates the weekly report and delivers it directly. Otherwise, it offers to set up Telegram.*
 
 ---
 
@@ -71,6 +76,12 @@ What's my half marathon PR?
 ```
 How does my training compare to last month?
 ```
+```
+Set up my routines.
+```
+```
+What's my recovery like this week?
+```
 
 ---
 
@@ -78,5 +89,5 @@ How does my training compare to last month?
 
 - Use a real Strava account with at least 3 months of history for the best results.
 - Blur or skip the profile picture and exact address in the athlete profile output.
-- The weekly report and YTD summary are the most visually impressive outputs.
-- The `/athlete-notify` command works best when Slack or Telegram is pre-configured.
+- The weekly report, training load chart, and goal progress are the most visually impressive outputs.
+- Set up Telegram notifications beforehand to demo the automated delivery feature.
