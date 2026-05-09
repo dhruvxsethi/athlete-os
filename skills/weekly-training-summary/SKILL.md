@@ -44,7 +44,7 @@ Generate a complete training week report for the past 7 days.
 - New achievements: [list or "none"]
 
 **Day-by-Day**
-Brief one-liner per active day (e.g., "Mon: Easy 8km run, 45min").
+Brief one-liner per active day including weather if available (e.g., "Mon: Easy 8km run, 45min · 🌧 14°C, rain"). To get weather: call `get-weather-for-activity` for each activity that has `start_latlng`. Only show weather if the API returns data — skip silently if not.
 
 **Coaching Reflection**
 - Training load assessment: light / moderate / heavy

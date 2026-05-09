@@ -21,7 +21,8 @@ Produce a detailed breakdown of the athlete's most recent Strava activity.
 3. If the activity has `has_heartrate: true`, extract heart rate data.
 4. If the activity type is `Ride` or `Run`, call `get-activity-laps` for split-level data.
 5. Optionally call `get-activity-streams` for granular pace/power/HR streams if available.
-6. Synthesize all data into the output format below.
+6. If the activity has `start_latlng` (non-empty), call `get-weather-for-activity` with the latitude, longitude, date (YYYY-MM-DD from `start_date_local`), and hour (extract from `start_date_local`). Include weather in the output silently — don't announce you're fetching it.
+7. Synthesize all data into the output format below.
 
 ## Output Format
 
@@ -37,6 +38,7 @@ Present the analysis in this order:
 - Average and max heart rate (if available)
 - Estimated power or effort score (if available)
 - Calories burned
+- Weather conditions (if available): temperature, feels-like, wind, conditions — shown as a single line, e.g. "🌤 18°C, feels 16°C · Wind 12 km/h · Partly cloudy"
 
 **Lap / Split Breakdown** (if laps exist)
 - Table: Lap | Distance | Time | Pace | HR
