@@ -1,6 +1,6 @@
 ---
 name: goal-tracking
-description: Track annual training goals — set a target, then check progress at any time with a unicode progress bar and year-end projection. Use when the user wants to set a goal, check goal progress, or ask if they're on track for the year.
+description: Track annual training goals — set a target, then check progress at any time with a unicode progress bar and year-end projection. Use when the user wants to set a goal, check goal progress, delete a goal, or ask if they're on track for the year.
 triggers:
   - "set a goal"
   - "training goal"
@@ -11,6 +11,8 @@ triggers:
   - "annual goal"
   - "1000km"
   - "how many km this year"
+  - "delete my goal"
+  - "remove my goal"
   - "/athlete-goals"
 ---
 
@@ -49,48 +51,57 @@ When the user asks about goals or runs `/athlete-goals`:
    - `progress_pct = ytd_value / target × 100`
    - `days_elapsed` = day-of-year today
    - `days_in_year` = 365 (or 366)
+   - `weeks_remaining = (days_in_year − days_elapsed) / 7`
    - `expected_pct = days_elapsed / days_in_year × 100`
    - `projected_year_end = ytd_value / days_elapsed × days_in_year`
+   - `weekly_rate_needed = (target − ytd_value) / weeks_remaining`
    - `on_track = projected_year_end >= target × 0.95`
 
 4. Render the report.
 
 ## Output Format
 
+**Chart:** Call `generate-chart` with:
+- type: "bar"
+- title: "[YEAR] TRAINING GOALS"
+- labels: one label per goal — e.g. ["RUN KM", "RIDE KM", "SWIM KM"]
+- series:
+  [
+    { name: "Actual", values: [ytd_value_per_goal], color: "progress" },
+    { name: "Target", values: [target_per_goal], color: "goal" },
+  ]
+- unit: appropriate unit (km, h, or "")
+
+Read `chart_path` to display inline. The chart shows actual vs target as side-by-side bars — immediately visual.
+
+**After the chart, one line per goal:**
 ```
-2026 Training Goals  (Day 130 of 365 — 36% of year)
-──────────────────────────────────────────────────────
-🏃 Run   1000 km
-  ████████░░░░░░░░░░░░  680 / 1000 km  (68%)
-  On track ✓  →  projected 1,720 km by Dec 31
-
-🚴 Ride  2000 km
-  ████░░░░░░░░░░░░░░░░  580 / 2000 km  (29%)
-  Behind ⚠️  →  projected 1,460 km — need +38 km/week to hit 2000
-
-🏊 Swim  50 km
-  ████████████████████  48 / 50 km  (96%)
-  Almost there 🎯  →  2 km to go
+Run 1000km  →  680 / 1000 km (68%)  On track ✓  projected 1720 km · need 38km/wk
+Ride 2000km →  580 / 2000 km (29%)  Behind ⚠️   projected 1460 km · need 60km/wk
+Swim 50km   →   48 / 50 km  (96%)  Almost there · 2 km to go
 ```
 
-Progress bar: 20 blocks wide. Fill proportionally to `progress_pct`. Cap at 20 filled blocks even if over 100%.
-
-Status labels:
+Status:
 - `projected >= target`: "On track ✓"
-- `projected >= target × 0.9`: "Close — [X] [unit] to go to stay on track"
-- `projected < target × 0.9`: "Behind ⚠️ — need [weekly rate] to hit [target]"
-- `progress_pct >= 100`: "Done! 🎯 Goal achieved [N] days early"
-
-Weekly rate needed to catch up: `(target − ytd_value) / weeks_remaining`.
+- `projected >= target × 0.9`: "Close — need [weekly_rate] [unit]/wk"
+- `projected < target × 0.9`: "Behind ⚠️"
+- `progress_pct >= 100`: "Done! Goal achieved"
 
 ## Deleting a Goal
 
-If the user says "remove my cycling goal" or "delete my swim goal for 2026":
-- Call `get-goals`, find the matching goal, remove it from the list, call `set-goal` won't work here — tell the user to say "set my [sport] goal to 0" as a workaround, or handle gracefully by noting goal management is limited to setting/updating for now.
+If the user says "remove my cycling goal" or "delete my run goal for 2026":
+
+1. Call `get-goals` to confirm the goal exists.
+2. If found, confirm with the user: "Delete [sport] goal of [target] [metric] for [year]?"
+3. On confirmation, call `delete-goal` with `sport`, `metric`, and `year`.
+4. Confirm: "✓ Goal removed."
+
+If not found: "No [sport] goal found for [year]."
 
 ## Example Prompts
 
 - "Set my running goal to 1000km for 2026"
 - "Am I on track for my goals?"
 - "How close am I to my annual targets?"
+- "Delete my cycling goal"
 - "/athlete-goals"

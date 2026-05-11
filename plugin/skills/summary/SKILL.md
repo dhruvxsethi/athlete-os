@@ -55,25 +55,25 @@ Call `check-strava-connection` first. If not available:
 
 ### Output
 
-**Week at a Glance** (MM/DD – MM/DD)
-Total activities · Total distance · Total time · Total elevation
+**Header line:** "Week of MM/DD–MM/DD · X activities · Y km · Z hrs"
 
-**By Sport**
-| Sport | Sessions | Distance | Time | Elevation |
+**Chart:** Call `generate-chart` with:
+- type: "bar"
+- title: "THIS WEEK BY SPORT"
+- labels: sport names active this week (e.g. ["RUN", "RIDE", "SWIM"])
+- series: [{ name: "Distance (km)", values: [dist_per_sport], color: sport color (run/ride/swim) }]
+  Use one series per sport with its own color if multi-sport, or a single series if one sport.
+- unit: "km"
 
-**Highlights**
-- Longest and hardest activity
-- PRs and achievements (or "none")
+Read `chart_path` to display inline.
 
-**Day-by-Day**
-One liner per active day — e.g. "Mon: Easy 8km run, 45min · 🌧 14°C, rain"
+**Highlights (2–3 bullets):** longest activity, hardest, any PRs.
 
-**Coaching Reflection**
-Load assessment (light/moderate/heavy) · Consistency · Balance · One recommendation for next week.
+**Day-by-day (one line each):** "Mon: 8km easy run · 14°C clear"
 
-**Telegram offer** (if running interactively, not from a routine):
-> "Want me to send this to Telegram?"
-If yes, call `send-telegram` with plain text (no markdown, no ** or #).
+**Coaching reflection (2 sentences):** load level + one recommendation.
+
+**Telegram:** if interactive (not a routine), offer to send. If yes, call `send-telegram-photo` with the chart, then `send-telegram` with the text summary (plain text, no markdown).
 
 ---
 
@@ -92,23 +92,24 @@ If yes, call `send-telegram` with plain text (no markdown, no ** or #).
 
 ### Output
 
-**Bar chart per active sport** (skip sports with only 1 active month):
-```
-Distance by Month (km)
-──────────────────────────────────
-Dec  ████░░░░░░  38.4 km  (5 runs)
-Jan  ██████░░░░  51.2 km  (7 runs)
-Feb  ████████░░  68.9 km  (9 runs)
-Mar  ██████████  81.0 km  (11 runs)
-May  ████████░░  71.3 km  (9 runs)  ← this month
-```
+**Chart (multi-series bar):** Call `generate-chart` with:
+- type: "bar"
+- title: "TRAINING VOLUME BY MONTH"
+- labels: month abbreviations e.g. ["NOV", "DEC", "JAN", "FEB", "MAR", "APR", "MAY"]
+- series: one per active sport — e.g.
+  [
+    { name: "Run", values: [km_per_month…], color: "run" },
+    { name: "Ride", values: [km_per_month…], color: "ride" },
+    { name: "Swim", values: [km_per_month…], color: "swim" },
+  ]
+  Omit sports with zero total volume.
+- unit: "km"
 
-Bars are always 10 blocks wide (`█` filled, `░` empty), scaled to max value. Label current partial month with `← this month`. Zero-activity months show as `░░░░░░░░░░  0 km`.
-
-**Summary table:**
-| Month | 🏃 km | 🚴 km | 🏊 km | ⏱ hrs | 📈 elev |
+Read `chart_path` to display inline.
 
 **Trend analysis (3–5 sentences):** volume trend, most active month, biggest month-over-month jump (flag if >40%), consistency, one coaching note.
+
+**Telegram:** if interactive, offer to send. Call `send-telegram-photo` with the chart, then `send-telegram` with the trend analysis as plain text.
 
 ---
 
@@ -156,34 +157,33 @@ Call `check-oura-connection`. If connected, call `get-oura-readiness` for today.
 
 ### Output
 
-```
-Fitness & Fatigue  (as of [today])
-──────────────────────────────────────────
-CTL  (Fitness)   ████████░░  XX pts
-ATL  (Fatigue)   ██████░░░░  XX pts
-TSB  (Form)      ±XX pts  → [state]
+**PMC line chart:** Call `generate-chart` with:
+- type: "line"
+- title: "FITNESS AND FATIGUE — LAST 6 WEEKS"
+- labels: weekly date labels e.g. ["APR 1", "APR 8", "APR 15", "APR 22", "APR 29", "MAY 6"]
+  Use 6 points, one per week (weekly average CTL/ATL/TSB).
+- series:
+  [
+    { name: "CTL Fitness", values: [weekly_ctl…], color: "ctl" },
+    { name: "ATL Fatigue", values: [weekly_atl…], color: "atl" },
+    { name: "TSB Form",    values: [weekly_tsb…], color: "tsb" },
+  ]
+- unit: "pts"
 
+Read `chart_path` to display inline.
+
+**After the chart — one status block:**
+```
+CTL (Fitness)  XX pts
+ATL (Fatigue)  XX pts
+TSB (Form)     ±XX pts  →  [state]
 Oura readiness: XX/100  (if connected)
 ```
 
-TSB states:
-- > +25: Very fresh — race-ready
-- +10 to +25: Fresh — good for a hard effort
-- −10 to +10: Neutral — steady state
-- −20 to −10: Building — adaptation happening
-- < −20: Fatigued — ease off
+TSB states: >+25 Very fresh · +10 to +25 Fresh · −10 to +10 Neutral · −20 to −10 Building · <−20 Fatigued
 
-```
-6-Week Fitness Trend
-──────────────────────────────────────────
-Week −5  ████░░░░  XX pts
-Week −4  █████░░░  XX pts
-Week −3  ███████░  XX pts
-Week −2  ████████  XX pts
-Week −1  ███████░  XX pts
-Now      ██████░░  XX pts  ← today
-```
+**Coaching note (2–3 sentences):** name the phase, flag if ATL > CTL × 1.3 (overreaching risk), one concrete action.
 
-**Coaching note (2–4 sentences):** name the phase (building/peaking/recovering), flag if ATL > CTL × 1.3 (overreaching risk), one concrete action.
+**Telegram:** if interactive, call `send-telegram-photo` with the chart, then `send-telegram` with the status block + coaching note.
 
-Note: suffer_score-based TSS is an approximation — power meter data would be more precise. If fewer than 14 days of data found, note the model needs more history.
+Note: suffer_score-based TSS is an approximation. Flag if fewer than 14 days of data.

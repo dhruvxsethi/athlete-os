@@ -99,14 +99,19 @@ Keep it conversational. Short paragraphs, not bullet walls.
 
 ### Steps
 
-1. Call `get-all-activities` with `after` set to 90 days ago (current Unix time − 7,776,000 seconds).
-2. Filter to the sport they're asking about (default: Run; use Ride if they mention cycling).
-3. For each activity, use `average_heartrate` for zone classification if available; fall back to pace.
-4. Bucket each activity into zones and sum time per zone.
+1. Call `get-athlete-zones` to get the athlete's actual configured HR zones. Use these if they exist.
+2. Call `get-all-activities` with `after` set to 90 days ago (current Unix time − 7,776,000 seconds).
+3. Filter to the sport they're asking about (default: Run; use Ride if they mention cycling).
+4. For each activity, use `average_heartrate` for zone classification if available; fall back to pace/speed.
+5. Bucket each activity into zones and sum time per zone.
 
 ### Zone Definitions
 
-**Running — HR zones (preferred if `average_heartrate` available)**
+**Running — HR zones**
+
+Preferred: use the athlete's actual zones from `get-athlete-zones` (heart_rate.zones array — each zone has `min` and `max` bpm).
+
+If `get-athlete-zones` returns no heart rate zones, fall back to % of max HR:
 | Zone | % Max HR | Label |
 |------|----------|-------|
 | Z1 | < 68% | Recovery |
@@ -115,33 +120,42 @@ Keep it conversational. Short paragraphs, not bullet walls.
 | Z4 | 82–89% | Threshold |
 | Z5 | > 89% | VO2 Max |
 
-Estimate max HR as 220 − age if known, otherwise 185 as default.
+For the fallback, use max HR from activity data (`max_heartrate` field across recent activities — take the highest value seen). If no max HR data at all, use 185 but note this in the output.
 
-**Running — Pace zones (fallback, min/km)**
+**Running — Pace zones (fallback when no HR data, min/km)**
 Z1 > 6:30 / Z2 5:45–6:30 / Z3 5:00–5:45 / Z4 4:20–5:00 / Z5 < 4:20
 
-**Cycling — Speed zones (km/h)**
+**Cycling — Power zones (if FTP set in athlete profile)**
+If athlete has FTP from `get-athlete-profile`, use standard power zones (% of FTP):
+Z1 < 55% / Z2 55–75% / Z3 75–90% / Z4 90–105% / Z5 > 105%
+
+**Cycling — Speed zones (fallback, km/h)**
 Z1 < 22 / Z2 22–28 / Z3 28–34 / Z4 34–40 / Z5 > 40
 
 ### Output
 
-```
-Training Time by Zone — Last 90 Days (Runs)
-────────────────────────────────────────────
-Z1 Recovery   ██░░░░░░░░   8%   (2h 14m)
-Z2 Aerobic    ██████████  51%  (14h 22m)  ✓ base
-Z3 Tempo      ████░░░░░░  19%   (5h 21m)
-Z4 Threshold  ██░░░░░░░░  12%   (3h 22m)
-Z5 VO2 Max    ██░░░░░░░░  10%   (2h 48m)
+1. Call `generate-chart` with:
+   - type: "bar"
+   - title: "ZONE DISTRIBUTION — LAST 90 DAYS" (append sport)
+   - labels: ["Z1 RECOVERY", "Z2 AEROBIC", "Z3 TEMPO", "Z4 THRESHOLD", "Z5 VO2"]
+   - series: [{ name: "Hours", values: [hours_per_zone…], color: the zone color (z1/z2/z3/z4/z5) }]
+     Use one series per zone with its own color so each bar is colored differently:
+     series: [
+       { name: "Z1", values: [z1_hours, 0, 0, 0, 0], color: "z1" },
+       { name: "Z2", values: [0, z2_hours, 0, 0, 0], color: "z2" },
+       { name: "Z3", values: [0, 0, z3_hours, 0, 0], color: "z3" },
+       { name: "Z4", values: [0, 0, 0, z4_hours, 0], color: "z4" },
+       { name: "Z5", values: [0, 0, 0, 0, z5_hours], color: "z5" },
+     ]
+     (This gives each bar its own zone color.)
+   - unit: "h"
+2. Read the returned `chart_path` to display the chart inline.
+3. If Telegram is configured, call `send-telegram-photo` with the path and a short caption.
 
-Based on 23 runs · 187 km total
-```
-
-Bars are 10 blocks wide, scaled to highest zone's percentage.
-
-**Interpretation (3–5 lines):**
+**After the chart, one short paragraph:**
+- Zone breakdown summary: "X hrs Z1+Z2 (aerobic base), Y hrs Z4+Z5 (intensity)"
 - **80/20 check**: polarized training targets ~80% Z1+Z2, ~20% Z4+Z5
 - **Junk miles flag**: if Z3 > 25%, flag the "moderately hard" trap
-- **One concrete suggestion**: e.g. "Strong Z2 base but very little Z4/Z5 — add one interval session per week to get faster"
+- One concrete suggestion — e.g. "Strong base but little Z4/Z5 — add one interval session per week"
 
-Skip activities shorter than 10 minutes. Don't show decimal places on percentages.
+Keep total response concise: chart + 3–5 sentences. Skip activities shorter than 10 minutes.

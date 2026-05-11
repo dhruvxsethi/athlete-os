@@ -1,15 +1,15 @@
 ---
 name: athlete-status
-description: Check Athlete OS health — Strava connection, token status, integrations (Oura, Telegram), and a quick summary of recent activity. Run this when you're not sure if everything is set up correctly.
+description: Check Athlete OS health — Strava connection, token status, integrations (Oura, Telegram), and a quick summary of recent activity. Run this when you're not sure if everything is set up correctly, or when you first install to see what you can do.
 ---
 
-Run a full health check for Athlete OS.
+Run a full health check for Athlete OS, then show what the user can do next.
 
 ## Steps
 
 1. **Strava connection** — Call `check-strava-connection`.
    - Returns a name: ✅ Connected
-   - Errors: ❌ Not connected → invoke the `oauth-setup` skill
+   - Errors: ❌ Not connected → tell them to say "Connect my Strava account"
 
 2. **Token and integration status** — Read credentials file (no live calls, no test messages):
    ```bash
@@ -48,10 +48,46 @@ Integrations
   Telegram   ✅ configured
 
 📊 Last activity  Morning Run · 8.4 km · 2 days ago
-
-Everything looks good.
-Try: "What did I do this week?" · "/athlete-load" · "/athlete-goals"
 ```
 
 If anything is broken, give the specific fix — don't just report the error.
 If Oura or Telegram show "not configured", say: "Say 'connect my Oura' or 'set up Telegram notifications' to enable them."
+
+## What you can do
+
+After the status block, always show this section (adapt based on what's connected):
+
+```
+─────────────────────────────────────────────────
+What you can ask:
+
+  Workouts
+  · "How was my last run?"
+  · "Analyze my last workout" (splits, laps, HR)
+  · "How polarized is my training?" (zone distribution)
+
+  Training overview
+  · "What did I do this week?"
+  · "Show me monthly trends"
+  · "How fit am I right now?" (training load / CTL/ATL/TSB)
+
+  Goals
+  · "Set my running goal to 1000km for 2026"
+  · "Am I on track for my goals?"
+
+  [If Oura connected:]
+  · "What's my readiness today?"
+  · "Show me my sleep this week"
+
+  [If Telegram configured:]
+  · "Set up my routines" → automated debriefs and summaries sent to your phone
+
+─────────────────────────────────────────────────
+```
+
+Omit the Oura and Telegram sections if those integrations aren't configured — instead add:
+```
+  Not set up yet:
+  · "Connect my Oura" — add recovery data to every analysis
+  · "Set up Telegram" — get summaries pushed to your phone
+```

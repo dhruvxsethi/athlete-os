@@ -14,23 +14,17 @@ triggers:
 
 # Setup Automated Training Routines
 
-## Step 1 — Read credentials
+Routines are scheduled Claude agents that run on a cron schedule. They use the credentials already saved on your machine — no extra setup needed.
 
-Run this to get current credential values:
+## Step 1 — Check connections
+
+Call `check-strava-connection` to confirm Strava is active. If Telegram routines are selected, verify `telegram_bot_token` is in credentials:
 
 ```bash
-cat ~/.config/athlete-os/credentials.json
+node -e "const c=JSON.parse(require('fs').readFileSync(require('os').homedir()+'/.config/athlete-os/credentials.json','utf8'));console.log('telegram='+(c.telegram_bot_token?'configured':'NOT configured'));"
 ```
 
-Extract these fields (you'll embed them directly in the routine prompts):
-- `client_id`
-- `client_secret`
-- `refresh_token`
-- `telegram_bot_token` (if present)
-- `telegram_chat_id` (if present)
-- `oura_access_token` (if present)
-
-Also note which integrations are configured (telegram, oura) — use the appropriate routine prompt variant below.
+If Telegram isn't configured and the user selects a routine that sends to Telegram, run the Telegram setup from the `connect` skill first.
 
 ## Step 2 — Ask what to automate
 
@@ -56,17 +50,7 @@ If **daily briefing** selected:
 
 ## Step 4 — Create the routines
 
-Use the `schedule` skill for each. Every routine prompt must start with the credential restore block — substitute the actual values from Step 1.
-
-**Credential restore block (prepend to every routine prompt):**
-```
-Start by restoring credentials. Run this bash command exactly:
-node -e "const fs=require('fs'),os=require('os'),path=require('path'),d=path.join(os.homedir(),'.config/athlete-os');fs.mkdirSync(d,{recursive:true});fs.writeFileSync(path.join(d,'credentials.json'),JSON.stringify({client_id:'CLIENT_ID_HERE',client_secret:'CLIENT_SECRET_HERE',refresh_token:'REFRESH_TOKEN_HERE',telegram_bot_token:'BOT_TOKEN_HERE',telegram_chat_id:'CHAT_ID_HERE'},null,2));console.log('credentials restored');"
-
-Then proceed with the routine below.
-```
-
-Substitute `CLIENT_ID_HERE`, `CLIENT_SECRET_HERE`, `REFRESH_TOKEN_HERE`, `BOT_TOKEN_HERE`, `CHAT_ID_HERE` with the actual values from Step 1. If Telegram isn't configured, omit those two fields from the JSON. If Oura is configured, add `oura_access_token:'OURA_TOKEN_HERE'` to the JSON.
+Use the `schedule` skill for each.
 
 ---
 
@@ -76,22 +60,25 @@ Substitute `CLIENT_ID_HERE`, `CLIENT_SECRET_HERE`, `REFRESH_TOKEN_HERE`, `BOT_TO
 
 **Prompt:**
 ```
-[credential restore block]
+Check for new Strava activities that haven't been debriefed yet:
 
-Check for new Strava activities in the last 90 minutes: call get-all-activities with after set to (current Unix timestamp minus 5400). If there are one or more new activities, run the debrief skill on the most recent one, then call send-telegram with the full debrief as plain text. If no new activities, do nothing and output nothing.
+1. Call get-last-processed-activity to get the last activity ID that was sent.
+2. Call get-all-activities with after set to (current Unix timestamp minus 5400) to find activities in the last 90 minutes.
+3. If there are no new activities, stop — output nothing.
+4. If the most recent activity has the same ID as last_processed_activity_id, stop — it was already debriefed.
+5. Otherwise, run a full workout debrief on the most recent activity (use the debrief skill — post-workout mode). Then call send-telegram with the debrief as plain text (no markdown).
+6. Call mark-activity-processed with the activity's ID.
 ```
 
 ---
 
 ### Daily morning briefing
 
-**Cron**: `0 7 * * *` (adjust hour/minute per chosen time: 7am=`0 7`, 7:30=`30 7`, 8am=`0 8`, 8:30=`30 8`)
+**Cron**: `0 7 * * *` (adjust: 7:30am=`30 7`, 8am=`0 8`, 8:30am=`30 8`)
 
 **Prompt:**
 ```
-[credential restore block]
-
-Give a concise daily training briefing. Call get-all-activities for the last 90 days to compute training load (CTL/ATL/TSB). Call check-oura-connection — if connected, call get-oura-readiness for today. Write 2-3 sentences recommending what to do today based on form and recovery. Then call send-telegram with the full briefing as plain text.
+Give a concise daily training briefing. Call get-all-activities for the last 90 days to compute training load (CTL/ATL/TSB). Call check-oura-connection — if connected, call get-oura-readiness for today. Write 2–3 sentences recommending what to do today based on form and recovery. Call send-telegram with the full briefing as plain text.
 ```
 
 ---
@@ -102,9 +89,7 @@ Give a concise daily training briefing. Call get-all-activities for the last 90 
 
 **Prompt:**
 ```
-[credential restore block]
-
-Run the summary skill for the past 7 days across all sport types. After generating, call send-telegram with the full summary as plain text (no markdown — strip ** and # but keep tables and unicode bars).
+Run the summary skill for the past 7 days across all sport types. Generate the weekly bar chart using generate-chart. Send the chart image first using send-telegram-photo with a one-line caption ("Week of MM/DD – total X km, Y activities"). Then send the text summary (highlights + coaching note) using send-telegram as plain text.
 ```
 
 ---
@@ -115,9 +100,7 @@ Run the summary skill for the past 7 days across all sport types. After generati
 
 **Prompt:**
 ```
-[credential restore block]
-
-Run the summary skill for the last 3 months showing month-by-month volume trends with unicode bar charts by sport. After generating, call send-telegram with the full output as plain text.
+Run the summary skill for the last 3 months. Generate the monthly volume bar chart using generate-chart. Send the chart image using send-telegram-photo with caption showing total volume by sport. Then send the trend analysis text using send-telegram as plain text.
 ```
 
 ---
@@ -127,4 +110,4 @@ Run the summary skill for the last 3 months showing month-by-month volume trends
 > "✓ [N] routine(s) created:
 > [list each with its schedule]
 >
-> Credentials are embedded directly in each routine — no env var setup needed. The after-every-workout routine checks once per hour, so you'll get your debrief within 60 minutes of finishing."
+> The after-every-workout routine checks once per hour and skips activities that have already been debriefed — no duplicates."

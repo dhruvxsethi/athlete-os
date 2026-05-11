@@ -154,14 +154,23 @@ node -e "const fs=require('fs'),os=require('os'),path=require('path'),f=path.joi
 > 3. Pick any name and username
 > 4. Copy the **bot token** it gives you (looks like `7412345678:AAHxyz...`)"
 
-### Step 3 — Get chat ID
+### Step 3 — Get chat ID (auto-fetch)
 
-> "Now get your chat ID:
-> 1. Search **@userinfobot** in Telegram
-> 2. Send it any message
-> 3. Copy the **Id** number it replies with"
+> "Now start a conversation with your bot:
+> 1. Search Telegram for your bot by its username
+> 2. Tap **Start** (or send it any message)"
 
-Ask: "What's your bot token?" → wait → "And your chat ID?"
+Ask: "What's your bot token?" then wait. Once you have the token, auto-fetch the chat ID:
+
+```bash
+curl -s "https://api.telegram.org/bot<BOT_TOKEN>/getUpdates"
+```
+
+Parse the JSON — look for `result[0].message.chat.id`. That's the chat ID.
+
+If the result array is empty, the user hasn't messaged their bot yet:
+> "It looks like your bot hasn't received any messages yet. Open Telegram, find your bot by username, and send it 'hi'. Then I'll fetch your chat ID."
+Run the curl again after they confirm.
 
 ### Step 4 — Save
 

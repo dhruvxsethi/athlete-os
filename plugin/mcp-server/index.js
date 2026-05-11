@@ -8,6 +8,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
+import { drawBarChart, drawLineChart, resolveColor } from "./chart.js";
 
 // ─── Credentials ──────────────────────────────────────────────────────────────
 // Stored at ~/.config/athlete-os/credentials.json
@@ -129,7 +130,6 @@ async function stravaGet(creds, path, params = {}) {
     const refreshed = await refreshToken(creds);
     creds.access_token = refreshed.access_token;
     creds.refresh_token = refreshed.refresh_token;
-    // Only save to file if we're in local mode (file exists / is writable)
     try { saveCredentials(creds); } catch {}
   }
 
@@ -146,6 +146,17 @@ async function stravaGet(creds, path, params = {}) {
     res = await fetch(url, {
       headers: { Authorization: `Bearer ${creds.access_token}` },
     });
+  }
+
+  // Rate limited → wait for Retry-After, then retry once
+  if (res.status === 429) {
+    const retryAfter = parseInt(res.headers.get("X-RateLimit-Reset") || res.headers.get("Retry-After") || "60", 10);
+    const waitSec = Math.min(retryAfter, 120);
+    await new Promise(r => setTimeout(r, waitSec * 1000));
+    res = await fetch(url, { headers: { Authorization: `Bearer ${creds.access_token}` } });
+    if (res.status === 429) {
+      throw new Error(`Strava rate limit hit. You've made too many requests — wait a few minutes and try again.`);
+    }
   }
 
   if (!res.ok) {
@@ -353,6 +364,18 @@ const TOOLS = [
       required: ["start_date"],
     },
   },
+  {
+    name: "get-oura-activity",
+    description: "Get Oura daily activity data for a date range: steps, active calories, total calories, activity score, equivalent walking distance, sedentary/low/medium/high activity minutes.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        start_date: { type: "string", description: "Start date YYYY-MM-DD" },
+        end_date: { type: "string", description: "End date YYYY-MM-DD (default: today)" },
+      },
+      required: ["start_date"],
+    },
+  },
 
   // ── Telegram ──────────────────────────────────────────────────────────────
   {
@@ -364,6 +387,24 @@ const TOOLS = [
         message: { type: "string", description: "Message text to send. Plain text, no Markdown." },
       },
       required: ["message"],
+    },
+  },
+
+  // ── Deduplication ─────────────────────────────────────────────────────────
+  {
+    name: "get-last-processed-activity",
+    description: "Get the ID of the last activity that was debriefed by an automated routine. Used to avoid sending duplicate debrief notifications.",
+    inputSchema: { type: "object", properties: {}, required: [] },
+  },
+  {
+    name: "mark-activity-processed",
+    description: "Record the ID of an activity after its debrief has been sent. Prevents duplicate notifications for the same workout.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        activity_id: { type: "number", description: "Strava activity ID that was just debriefed" },
+      },
+      required: ["activity_id"],
     },
   },
 
@@ -399,6 +440,47 @@ const TOOLS = [
         year: { type: "number", description: "Goal year" },
       },
       required: ["sport", "metric", "year"],
+    },
+  },
+
+  // ── Charts ─────────────────────────────────────────────────────────────────
+  {
+    name: "generate-chart",
+    description: "Generate a PNG chart (bar or line) from training data. Returns a file path — use the Read tool on that path to display the chart inline. Also call send-telegram-photo with the path if Telegram is configured.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        type: { type: "string", enum: ["bar", "line"], description: "Chart type" },
+        title: { type: "string", description: "Chart title (use uppercase, e.g. 'MONTHLY RUN VOLUME')" },
+        labels: { type: "array", items: { type: "string" }, description: "X-axis labels" },
+        series: {
+          type: "array",
+          description: "Data series",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              values: { type: "array", items: { type: "number" } },
+              color: { type: "string", description: "Color name: run, ride, swim, z1-z5, ctl, atl, tsb, goal, progress, default" },
+            },
+            required: ["name", "values"],
+          },
+        },
+        unit: { type: "string", description: "Unit label shown on y-axis (e.g. 'km', 'h', 'pts')" },
+      },
+      required: ["type", "title", "labels", "series"],
+    },
+  },
+  {
+    name: "send-telegram-photo",
+    description: "Send a PNG chart image to the athlete's Telegram. Use after generate-chart to push the chart to their phone.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        photo_path: { type: "string", description: "Absolute path to the PNG file returned by generate-chart" },
+        caption: { type: "string", description: "Optional caption text (plain text only)" },
+      },
+      required: ["photo_path"],
     },
   },
 ];
@@ -571,6 +653,38 @@ async function callTool(name, args) {
       });
     }
 
+    case "get-oura-activity": {
+      const token = loadOuraToken();
+      if (!token) throw new Error("Oura not connected. Say 'connect my Oura' to set it up.");
+      const today = new Date().toISOString().slice(0, 10);
+      return ouraGet(token, "/daily_activity", {
+        start_date: args.start_date,
+        end_date: args.end_date ?? today,
+      });
+    }
+
+    // ── Deduplication ────────────────────────────────────────────────────────
+    case "get-last-processed-activity": {
+      if (existsSync(CREDS_FILE)) {
+        try {
+          const c = JSON.parse(readFileSync(CREDS_FILE, "utf8"));
+          return { last_processed_activity_id: c.last_processed_activity_id ?? null };
+        } catch {}
+      }
+      return { last_processed_activity_id: null };
+    }
+
+    case "mark-activity-processed": {
+      if (existsSync(CREDS_FILE)) {
+        try {
+          const c = JSON.parse(readFileSync(CREDS_FILE, "utf8"));
+          c.last_processed_activity_id = args.activity_id;
+          saveCredentials(c);
+        } catch {}
+      }
+      return { marked: true, activity_id: args.activity_id };
+    }
+
     // ── Telegram ────────────────────────────────────────────────────────────
     case "send-telegram": {
       const tg = loadTelegramConfig();
@@ -609,6 +723,34 @@ async function callTool(name, args) {
       );
       saveGoals(data);
       return { deleted: before - data.goals.length > 0, remaining: data.goals.length };
+    }
+
+    // ── Charts ────────────────────────────────────────────────────────────────
+    case "generate-chart": {
+      const { type, title, labels, series, unit = "" } = args;
+      const resolved = series.map(s => ({ ...s, color: resolveColor(s.color) }));
+      const opts = { title, labels, series: resolved, unit };
+      const chartPath = type === "line" ? drawLineChart(opts) : drawBarChart(opts);
+      return {
+        chart_path: chartPath,
+        instruction: "Use the Read tool on chart_path to display the chart inline. If Telegram is configured, also call send-telegram-photo with chart_path.",
+      };
+    }
+
+    case "send-telegram-photo": {
+      const tg = loadTelegramConfig();
+      if (!tg) throw new Error("Telegram not configured. Say 'set up Telegram' to connect it.");
+      const fileBuffer = readFileSync(args.photo_path);
+      const form = new FormData();
+      form.append("chat_id", tg.chatId);
+      form.append("photo", new Blob([fileBuffer], { type: "image/png" }), "chart.png");
+      if (args.caption) form.append("caption", args.caption);
+      const res = await fetch(`https://api.telegram.org/bot${tg.token}/sendPhoto`, {
+        method: "POST",
+        body: form,
+      });
+      if (!res.ok) throw new Error(`Telegram photo API ${res.status}: ${await res.text()}`);
+      return { sent: true };
     }
 
     default:

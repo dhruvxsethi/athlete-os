@@ -17,7 +17,7 @@
 
 import http from "http";
 import { exec } from "child_process";
-import { writeFileSync, readFileSync, mkdirSync, existsSync } from "fs";
+import { writeFileSync, chmodSync, readFileSync, mkdirSync, existsSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 import { createInterface } from "readline";
@@ -38,6 +38,7 @@ function loadExisting() {
 function save(creds) {
   mkdirSync(CREDS_DIR, { recursive: true });
   writeFileSync(CREDS_FILE, JSON.stringify(creds, null, 2), "utf8");
+  try { chmodSync(CREDS_FILE, 0o600); } catch {}
 }
 
 function openBrowser(url) {
