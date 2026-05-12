@@ -2,7 +2,8 @@
   "mcpServers": {
     "athlete-os-strava": {
       "command": "node",
-      "args": ["mcp-server/index.js"]
+      "args": ["mcp-server/index.js"],
+      "cwd": "${CLAUDE_PLUGIN_ROOT}"
     }
   }
 }
