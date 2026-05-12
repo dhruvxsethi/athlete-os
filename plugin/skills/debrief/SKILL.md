@@ -20,11 +20,41 @@ triggers:
 
 # Workout Debrief
 
-Handles everything about a single workout. Read the question to pick the right angle:
+Handles everything about a single workout. Read the question to pick the right mode:
 
 - **Just finished / quick feedback** → conversational debrief (short, direct, coach tone)
 - **Analyze / deep dive** → full structured breakdown (splits, HR zones, laps, coaching note)
 - **Pace distribution / zones / polarized** → zone analysis across 90 days
+
+## Unicode chart helpers
+
+Use these patterns throughout — more charts than text.
+
+**Sparkline** (inline trend, 8 chars): map values to `▁▂▃▄▅▆▇█` by normalizing to 0–7.
+
+**Horizontal bar** (progress/comparison):
+```
+Label  ████████░░  80%  value
+```
+Use `█` for filled, `░` for empty, 10 chars wide.
+
+**Lap splits bar chart** (vertical, inline):
+```
+PACE PER LAP (min/km)
+─────────────────────
+  5:10 ┤███
+  5:20 ┤█████
+  5:30 ┤███████████
+  5:40 ┤████
+       └──────────────
+        1  2  3  4  5
+```
+Or simpler horizontal version:
+```
+Lap 1  5:10  ████████░░
+Lap 2  5:20  ██████░░░░
+Lap 3  5:30  █████░░░░░
+```
 
 ## MCP check
 
@@ -50,12 +80,24 @@ Call `check-strava-connection` first. If not available:
 
 ### Output
 
-Keep it conversational. Short paragraphs, not bullet walls.
-
 **Opening line** — name the activity, lead with one specific observation.
 > "Good 10k this morning — you held it together in km 6–8 where your splits tightened instead of falling apart."
 
-**Effort read** (2–3 sentences) — was effort appropriate for the goal? Pacing pattern (even, positive, negative split)? One inline weather note if conditions mattered.
+**Lap splits chart** — always show if laps exist (even 2 laps). Use a horizontal bar chart normalized to the fastest lap:
+```
+LAP SPLITS
+──────────────────────────────────────────
+Lap 1   5:12  ████████░░  5:12/km
+Lap 2   5:08  █████████░  5:08/km  ↑ best
+Lap 3   5:19  ███████░░░  5:19/km
+Lap 4   5:31  █████░░░░░  5:31/km
+──────────────────────────────────────────
+Split pattern: negative → even → fade
+```
+Bar width (10 chars): normalized so fastest lap = 10 filled. Annotate best lap.
+Label split pattern: negative split / even split / positive split / fade.
+
+**Effort read** (2–3 sentences) — was effort appropriate for the goal? One inline weather note if conditions mattered.
 
 **One thing that went well** — specific, grounded in data.
 
@@ -84,10 +126,35 @@ Keep it conversational. Short paragraphs, not bullet walls.
 
 **Activity Header** — name, type, date, distance, moving time, elevation.
 
-**Performance Summary** — avg/max pace or speed, avg/max HR, calories, weather (single line: "🌤 18°C, feels 16°C · Wind 12 km/h").
+**Performance Summary** — one line: avg/max pace, avg/max HR, calories, weather.
 
-**Lap / Split Breakdown** (if laps exist)
-| Lap | Distance | Time | Pace | HR |
+**Lap / Split Breakdown** — always show as a chart, even if only 2 laps:
+
+```
+LAP-BY-LAP BREAKDOWN
+──────────────────────────────────────────────────────
+       Distance   Pace    HR   Bar (normalized to best)
+Lap 1   1.00 km  5:12  148    ████████░░
+Lap 2   1.00 km  5:08  151    █████████░  ↑ best lap
+Lap 3   1.00 km  5:19  154    ███████░░░
+Lap 4   1.00 km  5:31  162    █████░░░░░
+Lap 5   0.85 km  5:44  158    ████░░░░░░
+──────────────────────────────────────────────────────
+```
+
+**HR distribution sparkline** — if heart rate stream data available, bucket into 10 time-segments and show bpm trend:
+
+```
+HEART RATE TREND
+─────────────────────────────────────────
+ 165 ┤              ▄▆█▇▆
+ 155 ┤        ▃▅▇███     ▅▄
+ 145 ┤   ▂▄▆██
+ 135 ┤▂▃█
+     └─────────────────────────────────
+     0%  10%  20%  30%  40%  50%  60%  70%  80%  90%  100%
+```
+Normalize 10 HR samples to an 8-row ASCII area chart. Show min/max HR on the y-axis (just 3 labels: bottom, middle, top).
 
 **Highlights** — best lap, PRs, achievements, kudos.
 
@@ -134,28 +201,46 @@ Z1 < 22 / Z2 22–28 / Z3 28–34 / Z4 34–40 / Z5 > 40
 
 ### Output
 
-1. Call `generate-chart` with:
-   - type: "bar"
-   - title: "ZONE DISTRIBUTION — LAST 90 DAYS" (append sport)
-   - labels: ["Z1 RECOVERY", "Z2 AEROBIC", "Z3 TEMPO", "Z4 THRESHOLD", "Z5 VO2"]
-   - series: [{ name: "Hours", values: [hours_per_zone…], color: the zone color (z1/z2/z3/z4/z5) }]
-     Use one series per zone with its own color so each bar is colored differently:
-     series: [
-       { name: "Z1", values: [z1_hours, 0, 0, 0, 0], color: "z1" },
-       { name: "Z2", values: [0, z2_hours, 0, 0, 0], color: "z2" },
-       { name: "Z3", values: [0, 0, z3_hours, 0, 0], color: "z3" },
-       { name: "Z4", values: [0, 0, 0, z4_hours, 0], color: "z4" },
-       { name: "Z5", values: [0, 0, 0, 0, z5_hours], color: "z5" },
-     ]
-     (This gives each bar its own zone color.)
-   - unit: "h"
-2. Read the returned `chart_path` to display the chart inline.
-3. If Telegram is configured, call `send-telegram-photo` with the path and a short caption.
+**Zone distribution horizontal bar chart:**
 
-**After the chart, one short paragraph:**
-- Zone breakdown summary: "X hrs Z1+Z2 (aerobic base), Y hrs Z4+Z5 (intensity)"
-- **80/20 check**: polarized training targets ~80% Z1+Z2, ~20% Z4+Z5
-- **Junk miles flag**: if Z3 > 25%, flag the "moderately hard" trap
-- One concrete suggestion — e.g. "Strong base but little Z4/Z5 — add one interval session per week"
+```
+ZONE DISTRIBUTION — LAST 90 DAYS  (23 runs · 187 km)
+──────────────────────────────────────────────────────
+Z1 Recovery    ░░░░░░░░░░   8%   2h 14m
+Z2 Aerobic     █████░░░░░  51%  14h 22m  ✓ aerobic base
+Z3 Tempo       ██░░░░░░░░  19%   5h 21m  ⚠ grey zone
+Z4 Threshold   █░░░░░░░░░  12%   3h 22m
+Z5 VO2 Max     █░░░░░░░░░  10%   2h 48m
+──────────────────────────────────────────────────────
+Aerobic (Z1+Z2): 59%   Intensity (Z4+Z5): 22%   Grey zone (Z3): 19%
+```
 
-Keep total response concise: chart + 3–5 sentences. Skip activities shorter than 10 minutes.
+Bar width = 10 chars. Each `█` = 10% of total training time.
+
+**80/20 summary line:**
+- If Z1+Z2 ≥ 75% and Z4+Z5 ≥ 10%: "Polarized ✓ — textbook 80/20 distribution"
+- If Z3 > 25%: "Grey zone warning ⚠ — Z3 is the 'moderately hard' trap that kills adaptation"
+- If Z4+Z5 < 10%: "Missing intensity — add one interval session per week"
+- If Z1+Z2 < 60%: "Too much volume too hard — increase easy running"
+
+**Weekly volume sparkline** — show training volume per week for the 13 weeks in the window:
+
+```
+WEEKLY VOLUME — LAST 13 WEEKS (km)
+─────────────────────────────────
+Wk  1  ▁  12    Wk  8  ▄  38
+Wk  2  ▂  18    Wk  9  ▅  44
+Wk  3  ▁   9    Wk 10  ▆  52
+Wk  4  ▃  26    Wk 11  ▇  58
+Wk  5  ▃  28    Wk 12  ▅  41
+Wk  6  ▄  35    Wk 13  ▄  36
+Wk  7  ▃  30
+─────────────────────────────────
+Trend: ▁▂▁▃▃▄▃▄▅▆▇▅▄   ↑ building
+```
+
+Compute sparkline: normalize weekly volumes to 0–7, map to `▁▂▃▄▅▆▇█`. Show trend direction.
+
+**Coaching note (2–3 sentences):** name the phase, flag if Z3 > 25% (grey zone), one concrete action.
+
+Note: if fewer than 5 activities in the window, flag low sample size.

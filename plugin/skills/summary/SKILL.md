@@ -28,6 +28,21 @@ Handles everything about training over time. Read what the user is asking and pi
 - **"last month" / "last 3 months" / "how has my training changed"** → Monthly trends
 - **"training load" / "how fit am I" / "CTL/ATL" / "overtraining" / "am I fresh"** → PMC model
 
+## Unicode chart helpers
+
+Use these patterns throughout — every section gets at least one chart.
+
+**Sparkline**: map values to `▁▂▃▄▅▆▇█` by normalizing to 0–7 (0 = `▁`, max = `█`). Empty/zero weeks = `░`.
+
+**Horizontal bar (10 chars)**: `████████░░` — filled `█` proportional to value vs max.
+
+**Mini column chart** (inline, one row of sparkline chars below values):
+```
+     NOV  DEC  JAN  FEB  MAR  APR
+Run   48   63   38   55   71   84
+       ▃    █    ▂    ▄    ▆    █
+```
+
 ## MCP check
 
 Call `check-strava-connection` first. If not available:
@@ -49,7 +64,7 @@ Call `check-strava-connection` first. If not available:
 
 4. **PR / achievement scan** — check every activity for `pr_count > 0` or `achievement_count > 0`.
 
-5. **HR snapshot (optional)** — if 3+ activities have `has_heartrate: true`, pick the longest run or ride, call `get-activity-streams` with `keys: "heartrate,time"` and `resolution: "low"`. Use it for one sentence in the coaching reflection only.
+5. **HR snapshot (optional)** — if 3+ activities have `has_heartrate: true`, pick the longest run or ride, call `get-activity-streams` with `keys: "heartrate,time"` and `resolution: "low"`. Use it for the HR trend sparkline.
 
 6. **Weather** — for the day-by-day section, call `get-weather-for-activity` for activities with a non-empty `start_latlng`. Use `start_latlng[0]` as lat and `start_latlng[1]` as lng. Skip silently if no data.
 
@@ -57,23 +72,47 @@ Call `check-strava-connection` first. If not available:
 
 **Header line:** "Week of MM/DD–MM/DD · X activities · Y km · Z hrs"
 
-**Chart:** Call `generate-chart` with:
-- type: "bar"
-- title: "THIS WEEK BY SPORT"
-- labels: sport names active this week (e.g. ["RUN", "RIDE", "SWIM"])
-- series: [{ name: "Distance (km)", values: [dist_per_sport], color: sport color (run/ride/swim) }]
-  Use one series per sport with its own color if multi-sport, or a single series if one sport.
-- unit: "km"
+**Volume by sport — horizontal bars:**
+```
+THIS WEEK BY SPORT
+──────────────────────────────────────────
+Run    ████████░░  42 km  3 activities
+Ride   █████░░░░░  28 km  1 activity
+Swim   ██░░░░░░░░   3 km  2 activities
+──────────────────────────────────────────
+Total  67 km · 6h 42m · 820m elevation
+```
+Bar width = 10, normalized to highest-volume sport.
 
-Read `chart_path` to display inline.
+**Daily breakdown with activity sparkline:**
+```
+DAILY ACTIVITY
+──────────────────────────────────────────
+Mon  Run   8.2 km  5:18/km  ☁ 12°C
+Tue  —
+Wed  Run   12.0 km  5:31/km  ☀ 16°C
+Thu  Swim   1.5 km  open water
+Fri  —
+Sat  Ride   28 km  24.3 km/h  ☀ 19°C
+Sun  Run   22.1 km  5:44/km  ⛅ 14°C
+──────────────────────────────────────────
+Load:  ░░█░░█░  (days active this week)
+```
+The load row: `█` = activity day, `░` = rest day, Mon–Sun.
+
+**HR trend sparkline** (if HR data available — only show if ≥ 3 activities with HR):
+```
+HR TREND (avg bpm per activity)
+─────────────────────────────────
+148  154  142  158  151
+ ▄    ▆    ▂    █    ▅
+```
 
 **Highlights (2–3 bullets):** longest activity, hardest, any PRs.
 
-**Day-by-day (one line each):** "Mon: 8km easy run · 14°C clear"
-
 **Coaching reflection (2 sentences):** load level + one recommendation.
 
-**Telegram:** if interactive (not a routine), offer to send. If yes, call `send-telegram-photo` with the chart, then `send-telegram` with the text summary (plain text, no markdown).
+**Telegram:** if interactive (not a routine), offer to send. If yes, call `send-telegram` with the full text output (plain text, no markdown).
 
 ---
 
@@ -92,24 +131,50 @@ Read `chart_path` to display inline.
 
 ### Output
 
-**Chart (multi-series bar):** Call `generate-chart` with:
-- type: "bar"
-- title: "TRAINING VOLUME BY MONTH"
-- labels: month abbreviations e.g. ["NOV", "DEC", "JAN", "FEB", "MAR", "APR", "MAY"]
-- series: one per active sport — e.g.
-  [
-    { name: "Run", values: [km_per_month…], color: "run" },
-    { name: "Ride", values: [km_per_month…], color: "ride" },
-    { name: "Swim", values: [km_per_month…], color: "swim" },
-  ]
-  Omit sports with zero total volume.
-- unit: "km"
+**Volume table with sparkline row — one per active sport:**
 
-Read `chart_path` to display inline.
+```
+TRAINING VOLUME BY MONTH (km)
+──────────────────────────────────────────────────────
+        NOV  DEC  JAN  FEB  MAR  APR  MAY
+Run      48   63   38   55   71   84   67
+          ▃    █    ▂    ▄    ▆    █    ▅
+Ride     92  111   65   88  124  146  118
+          ▄    ▅    ▂    ▄    ▆    █    ▅
+Swim      4    0    6    4    8   10    7
+          ▂    ░    ▃    ▂    ▄    █    ▃
+──────────────────────────────────────────────────────
+```
+Each sport gets its own sparkline row. `░` = zero volume month. Normalize each sport's sparkline independently (its own max = `█`).
 
-**Trend analysis (3–5 sentences):** volume trend, most active month, biggest month-over-month jump (flag if >40%), consistency, one coaching note.
+**Activity count table:**
+```
+ACTIVITY COUNT
+──────────────────────────────────────────────────────
+        NOV  DEC  JAN  FEB  MAR  APR  MAY
+Run       8   10    6    9   12   13   11
+Ride      4    5    3    4    6    7    5
+Total    12   15    9   13   18   20   16
+──────────────────────────────────────────────────────
+```
 
-**Telegram:** if interactive, offer to send. Call `send-telegram-photo` with the chart, then `send-telegram` with the trend analysis as plain text.
+**Month-over-month change sparkline** (total volume):
+```
+TOTAL VOLUME TREND
+─────────────────────────────────────
+NOV → DEC: +24%  ↑
+DEC → JAN: −40%  ↓↓  (recovery block?)
+JAN → FEB: +45%  ↑↑  ⚠ big jump
+FEB → MAR: +29%  ↑
+MAR → APR: +18%  ↑
+APR → MAY: −20%  ↓
+─────────────────────────────────────
+```
+Flag any month-over-month jump > 40% with ⚠.
+
+**Trend analysis (3–5 sentences):** volume trend, most active month, biggest jump, consistency, one coaching note.
+
+**Telegram:** if interactive, call `send-telegram` with the full text output.
 
 ---
 
@@ -149,7 +214,7 @@ ATL_d = ATL_{d-1} + (TSS_d − ATL_{d-1}) × k_atl
 TSB_d = CTL_d − ATL_d
 ```
 
-Also track weekly average CTL for the last 6 weeks.
+Also compute weekly CTL, ATL, TSB averages for the last 6 weeks (use last day of each week).
 
 #### 4. Oura context
 
@@ -157,33 +222,50 @@ Call `check-oura-connection`. If connected, call `get-oura-readiness` for today.
 
 ### Output
 
-**PMC line chart:** Call `generate-chart` with:
-- type: "line"
-- title: "FITNESS AND FATIGUE — LAST 6 WEEKS"
-- labels: weekly date labels e.g. ["APR 1", "APR 8", "APR 15", "APR 22", "APR 29", "MAY 6"]
-  Use 6 points, one per week (weekly average CTL/ATL/TSB).
-- series:
-  [
-    { name: "CTL Fitness", values: [weekly_ctl…], color: "ctl" },
-    { name: "ATL Fatigue", values: [weekly_atl…], color: "atl" },
-    { name: "TSB Form",    values: [weekly_tsb…], color: "tsb" },
-  ]
-- unit: "pts"
-
-Read `chart_path` to display inline.
-
-**After the chart — one status block:**
+**Current status block:**
 ```
-CTL (Fitness)  XX pts
-ATL (Fatigue)  XX pts
-TSB (Form)     ±XX pts  →  [state]
-Oura readiness: XX/100  (if connected)
+FITNESS & FATIGUE — TODAY
+──────────────────────────────────────────
+CTL  Fitness   ██████████  58 pts
+ATL  Fatigue   ████████░░  47 pts
+TSB  Form      ███░░░░░░░  +11 pts  → Fresh
+──────────────────────────────────────────
+Oura readiness: 74/100  █████████░░░░░░  (if connected)
+```
+TSB bar: center it at 0. Positive TSB = filled right. Negative TSB = filled left.
+TSB states: > +25 Very fresh · +10 to +25 Fresh · −10 to +10 Neutral · −20 to −10 Building · < −20 Fatigued
+
+**6-week trend table with sparklines:**
+```
+6-WEEK FITNESS TREND
+──────────────────────────────────────────────────
+       Wk-5  Wk-4  Wk-3  Wk-2  Wk-1  Now
+CTL     42    46    49    53    56    58
+         ▁     ▃     ▄     ▆     ▇     █
+ATL     38    51    44    62    59    47
+         ▁     ▅     ▃     █     ▇     ▅
+TSB     +4    -5    +5    -9    -3   +11
+         ▄     ▂     ▄     ▁     ▃     █
+──────────────────────────────────────────────────
+```
+Normalize each row's sparkline independently. TSB: map −25…+25 to 0–7.
+
+**Weekly TSS bar chart (13 weeks):**
+```
+WEEKLY TRAINING LOAD (TSS)
+─────────────────────────────────────────────────────────────────
+Wk -12  ▂  180    Wk  -6  ▄  340    Wk  -1  ▆  480
+Wk -11  ▂  195    Wk  -5  ▃  290    Wk   0  ▅  420
+Wk -10  ▃  240    Wk  -4  ▅  380
+Wk  -9  ▁  140    Wk  -3  ▆  450
+Wk  -8  ▃  260    Wk  -2  ▇  510
+Wk  -7  ▄  310    Wk  -1  ▆  480
+─────────────────────────────────────────────────────────────────
+Trend: ▂▂▃▁▃▄▄▃▅▆▇▆▅
 ```
 
-TSB states: >+25 Very fresh · +10 to +25 Fresh · −10 to +10 Neutral · −20 to −10 Building · <−20 Fatigued
+**Coaching note (2–3 sentences):** name the phase (base / build / peak / recovery), flag if ATL > CTL × 1.3 (overreaching risk), one concrete action.
 
-**Coaching note (2–3 sentences):** name the phase, flag if ATL > CTL × 1.3 (overreaching risk), one concrete action.
-
-**Telegram:** if interactive, call `send-telegram-photo` with the chart, then `send-telegram` with the status block + coaching note.
+**Telegram:** if interactive, call `send-telegram` with the full status block + coaching note.
 
 Note: suffer_score-based TSS is an approximation. Flag if fewer than 14 days of data.

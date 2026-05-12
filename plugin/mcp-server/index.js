@@ -8,7 +8,6 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
-import { drawBarChart, drawLineChart, resolveColor } from "./chart.js";
 
 // ─── Credentials ──────────────────────────────────────────────────────────────
 // Stored at ~/.config/athlete-os/credentials.json
@@ -443,46 +442,6 @@ const TOOLS = [
     },
   },
 
-  // ── Charts ─────────────────────────────────────────────────────────────────
-  {
-    name: "generate-chart",
-    description: "Generate a PNG chart (bar or line) from training data. Returns a file path — use the Read tool on that path to display the chart inline. Also call send-telegram-photo with the path if Telegram is configured.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        type: { type: "string", enum: ["bar", "line"], description: "Chart type" },
-        title: { type: "string", description: "Chart title (use uppercase, e.g. 'MONTHLY RUN VOLUME')" },
-        labels: { type: "array", items: { type: "string" }, description: "X-axis labels" },
-        series: {
-          type: "array",
-          description: "Data series",
-          items: {
-            type: "object",
-            properties: {
-              name: { type: "string" },
-              values: { type: "array", items: { type: "number" } },
-              color: { type: "string", description: "Color name: run, ride, swim, z1-z5, ctl, atl, tsb, goal, progress, default" },
-            },
-            required: ["name", "values"],
-          },
-        },
-        unit: { type: "string", description: "Unit label shown on y-axis (e.g. 'km', 'h', 'pts')" },
-      },
-      required: ["type", "title", "labels", "series"],
-    },
-  },
-  {
-    name: "send-telegram-photo",
-    description: "Send a PNG chart image to the athlete's Telegram. Use after generate-chart to push the chart to their phone.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        photo_path: { type: "string", description: "Absolute path to the PNG file returned by generate-chart" },
-        caption: { type: "string", description: "Optional caption text (plain text only)" },
-      },
-      required: ["photo_path"],
-    },
-  },
 ];
 
 // ─── Tool handlers ────────────────────────────────────────────────────────────
@@ -723,34 +682,6 @@ async function callTool(name, args) {
       );
       saveGoals(data);
       return { deleted: before - data.goals.length > 0, remaining: data.goals.length };
-    }
-
-    // ── Charts ────────────────────────────────────────────────────────────────
-    case "generate-chart": {
-      const { type, title, labels, series, unit = "" } = args;
-      const resolved = series.map(s => ({ ...s, color: resolveColor(s.color) }));
-      const opts = { title, labels, series: resolved, unit };
-      const chartPath = type === "line" ? drawLineChart(opts) : drawBarChart(opts);
-      return {
-        chart_path: chartPath,
-        instruction: "Use the Read tool on chart_path to display the chart inline. If Telegram is configured, also call send-telegram-photo with chart_path.",
-      };
-    }
-
-    case "send-telegram-photo": {
-      const tg = loadTelegramConfig();
-      if (!tg) throw new Error("Telegram not configured. Say 'set up Telegram' to connect it.");
-      const fileBuffer = readFileSync(args.photo_path);
-      const form = new FormData();
-      form.append("chat_id", tg.chatId);
-      form.append("photo", new Blob([fileBuffer], { type: "image/png" }), "chart.png");
-      if (args.caption) form.append("caption", args.caption);
-      const res = await fetch(`https://api.telegram.org/bot${tg.token}/sendPhoto`, {
-        method: "POST",
-        body: form,
-      });
-      if (!res.ok) throw new Error(`Telegram photo API ${res.status}: ${await res.text()}`);
-      return { sent: true };
     }
 
     default:

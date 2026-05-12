@@ -31,7 +31,7 @@ Run a full health check for Athlete OS, then show what the user can do next.
 
 3. **Oura connection** (only if oura shows configured above) — Call `check-oura-connection` to get today's readiness score.
 
-4. **Recent activity** — Call `get-recent-activities` with `per_page: 1`. Show the most recent activity name, type, distance, and date.
+4. **Recent activity + 7-day sparkline** — Call `get-recent-activities` with `per_page: 7`. Show the most recent activity name, type, distance, and date. Build a 7-day activity sparkline: for each of the past 7 days (today = rightmost), find any activity that day and map its distance to `▁▂▃▄▅▆▇█` (normalize to max daily distance). Rest days = `░`.
 
 ## Output Format
 
@@ -48,6 +48,8 @@ Integrations
   Telegram   ✅ configured
 
 📊 Last activity  Morning Run · 8.4 km · 2 days ago
+
+Last 7 days:  ░░▃░▅░█  (Mon → today)
 ```
 
 If anything is broken, give the specific fix — don't just report the error.

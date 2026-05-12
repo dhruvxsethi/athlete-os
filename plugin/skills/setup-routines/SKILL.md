@@ -89,7 +89,7 @@ Give a concise daily training briefing. Call get-all-activities for the last 90 
 
 **Prompt:**
 ```
-Run the summary skill for the past 7 days across all sport types. Generate the weekly bar chart using generate-chart. Send the chart image first using send-telegram-photo with a one-line caption ("Week of MM/DD – total X km, Y activities"). Then send the text summary (highlights + coaching note) using send-telegram as plain text.
+Run the summary skill for the past 7 days across all sport types. Build the full Unicode chart output (volume by sport bars, daily activity grid, highlights, coaching reflection). Send everything as a single plain-text message using send-telegram.
 ```
 
 ---
@@ -100,7 +100,7 @@ Run the summary skill for the past 7 days across all sport types. Generate the w
 
 **Prompt:**
 ```
-Run the summary skill for the last 3 months. Generate the monthly volume bar chart using generate-chart. Send the chart image using send-telegram-photo with caption showing total volume by sport. Then send the trend analysis text using send-telegram as plain text.
+Run the summary skill for the last 3 months. Build the full Unicode chart output (monthly volume table with sparklines, month-over-month changes, trend analysis). Send everything as a single plain-text message using send-telegram.
 ```
 
 ---

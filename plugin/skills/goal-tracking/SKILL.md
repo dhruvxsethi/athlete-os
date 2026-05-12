@@ -61,31 +61,54 @@ When the user asks about goals or runs `/athlete-goals`:
 
 ## Output Format
 
-**Chart:** Call `generate-chart` with:
-- type: "bar"
-- title: "[YEAR] TRAINING GOALS"
-- labels: one label per goal — e.g. ["RUN KM", "RIDE KM", "SWIM KM"]
-- series:
-  [
-    { name: "Actual", values: [ytd_value_per_goal], color: "progress" },
-    { name: "Target", values: [target_per_goal], color: "goal" },
-  ]
-- unit: appropriate unit (km, h, or "")
+**Goal progress — one block per goal:**
 
-Read `chart_path` to display inline. The chart shows actual vs target as side-by-side bars — immediately visual.
-
-**After the chart, one line per goal:**
 ```
-Run 1000km  →  680 / 1000 km (68%)  On track ✓  projected 1720 km · need 38km/wk
-Ride 2000km →  580 / 2000 km (29%)  Behind ⚠️   projected 1460 km · need 60km/wk
-Swim 50km   →   48 / 50 km  (96%)  Almost there · 2 km to go
+2026 TRAINING GOALS
+──────────────────────────────────────────────────────────────────
+RUN KM
+  Actual    ██████░░░░░░░░░░░░░░   680 / 1000 km  (68%)
+  Expected  ████████░░░░░░░░░░░░   360 / 1000 km  (36%)  ← pace needed
+  ↑ Ahead of pace by 32%  →  On track ✓  projected 1720 km · need 38km/wk
+
+RIDE KM
+  Actual    █████░░░░░░░░░░░░░░░░   580 / 2000 km  (29%)
+  Expected  ████████░░░░░░░░░░░░   720 / 2000 km  (36%)
+  ↓ Behind pace by 7%   →  Behind ⚠    projected 1460 km · need 60km/wk
+
+SWIM KM
+  Actual    ███████████████████░   48 / 50 km  (96%)
+  Expected  ██████████████████░░   18 / 50 km  (36%)
+  ↑ Way ahead           →  Almost there · 2 km to go
+──────────────────────────────────────────────────────────────────
 ```
 
-Status:
-- `projected >= target`: "On track ✓"
-- `projected >= target × 0.9`: "Close — need [weekly_rate] [unit]/wk"
-- `projected < target × 0.9`: "Behind ⚠️"
-- `progress_pct >= 100`: "Done! Goal achieved"
+**Bar construction (20 chars wide):**
+- Actual bar: `progress_pct / 5` filled chars (max 20)
+- Expected bar: `expected_pct / 5` filled chars
+- Both use `█` filled, `░` empty
+
+**Status line rules:**
+- `projected >= target`: "On track ✓  projected [X] · need [weekly_rate]/wk"
+- `projected >= target × 0.9`: "Close — projected [X] · need [weekly_rate]/wk"
+- `projected < target × 0.9`: "Behind ⚠  projected [X] · need [weekly_rate]/wk to catch up"
+- `progress_pct >= 100`: "Done! 🎯 Goal achieved — [X]% of target"
+
+**Year progress context line** (shown once at top):
+```
+Year progress: ██████████░░░░░░░░░░  Day 129 / 365  (35% of year elapsed)
+```
+
+**Multi-goal comparison sparkline** (if ≥ 2 goals):
+```
+PACE COMPARISON (actual vs expected pace)
+─────────────────────────────────────────
+Run    ████████░░  +32%  ahead ✓
+Ride   ██░░░░░░░░   −7%  behind ⚠
+Swim   ████████░░  +60%  way ahead ✓
+─────────────────────────────────────────
+```
+Bar = actual/expected ratio (100% = 10 filled). > 10 filled = capped at 10 + ✓.
 
 ## Deleting a Goal
 
