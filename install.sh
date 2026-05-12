@@ -75,6 +75,35 @@ claude plugin marketplace remove athlete-os 2>/dev/null && echo "  Removed previ
 claude plugin marketplace add "$DIR"
 claude plugin install athlete-os
 
+# ── Patch .mcp.json with absolute path ───────────────────────────────────────
+# Claude Code doesn't expand ${CLAUDE_PLUGIN_ROOT} in MCP args, so we write
+# the absolute path directly into the installed .mcp.json after every install.
+INSTALL_PATH=$(node -e "
+try {
+  const d = JSON.parse(require('fs').readFileSync(require('os').homedir()+'/.claude/plugins/installed_plugins.json','utf8'));
+  const entry = Object.entries(d.plugins).find(([k]) => k.startsWith('athlete-os'));
+  console.log(entry ? entry[1][0].installPath : '');
+} catch(e) { console.log(''); }
+" 2>/dev/null)
+
+if [ -n "$INSTALL_PATH" ] && [ -f "$INSTALL_PATH/.mcp.json" ]; then
+  node -e "
+const path = '$INSTALL_PATH';
+const config = {
+  mcpServers: {
+    'athlete-os-strava': {
+      command: 'node',
+      args: [path + '/mcp-server/index.js']
+    }
+  }
+};
+require('fs').writeFileSync(path + '/.mcp.json', JSON.stringify(config, null, 2));
+console.log('  ✓ MCP server path set to: ' + path + '/mcp-server/index.js');
+  "
+else
+  echo "  ⚠ Could not find install path — MCP server may not load. Try running install.sh again."
+fi
+
 echo ""
 echo "  ✓ Athlete OS installed."
 echo ""
