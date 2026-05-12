@@ -58,8 +58,17 @@ Lap 3  5:30  █████░░░░░
 
 ## MCP check
 
-Call `check-strava-connection` first. If not available:
-> "The Strava connection isn't active yet. Fully quit Claude Code (⌘Q) and reopen it — the MCP server loads on startup."
+Call `check-strava-connection` first.
+
+**If the tool call fails or returns `connected: false`:**
+
+Say exactly this and STOP — do not attempt any workarounds (no Bash, no curl, no Python, no direct API calls, no reading credential files):
+
+> "The Strava tools aren't loaded yet — they start on Claude Code startup.
+>
+> **Press ⌘Q to fully quit Claude Code** (closing the window isn't enough), then reopen it. Once you're back, ask me the same thing again and it'll work."
+
+That's it. No further steps. The user needs to restart.
 
 ---
 

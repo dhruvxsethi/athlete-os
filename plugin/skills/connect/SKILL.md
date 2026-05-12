@@ -65,20 +65,37 @@ STRAVA_CLIENT_ID=<their_id> STRAVA_CLIENT_SECRET=<their_secret> node "$ATHLETE_O
 
 This opens their browser, catches the callback on localhost:8888, exchanges the code for tokens, and saves to credentials.json.
 
-### Step 4 — Verify and offer more
+### Step 4 — Verify and tell them to restart
 
-Call `check-strava-connection`. On success, immediately ask (multiSelect: true):
+The OAuth step saved credentials to disk. **Do NOT call `check-strava-connection` here** — the MCP tools only load at Claude Code startup, so they won't be available until a restart regardless of whether OAuth succeeded.
 
-- Question: "Strava is connected! Want to set up anything else now?"
-- Header: "Optional integrations"
-- Options:
-  - "Oura Ring — readiness and HRV woven into every analysis"
-  - "Telegram — get summaries and debriefs sent to your phone"
-  - "Skip for now"
+Instead, read the credentials file to confirm the token was saved:
 
-If Oura selected → run Oura flow below.
-If Telegram selected → run Telegram flow below.
-If skip → "No problem — say 'connect my Oura' or 'set up Telegram' anytime."
+```bash
+node -e "
+const fs = require('fs'), os = require('os'), path = require('path');
+const f = path.join(os.homedir(), '.config/athlete-os/credentials.json');
+try {
+  const c = JSON.parse(fs.readFileSync(f, 'utf8'));
+  console.log('access_token=' + (c.access_token ? 'saved' : 'MISSING'));
+  console.log('athlete=' + (c.athlete_name || 'unknown'));
+} catch { console.log('credentials=not found'); }
+"
+```
+
+If `access_token=saved`:
+
+> "✅ **Strava connected!** Your credentials are saved.
+>
+> **One required step: restart Claude Code now.**
+> Press ⌘Q to fully quit (closing the window isn't enough), then reopen it.
+> The Strava tools load on startup — this only needs to happen once.
+>
+> After restarting, say 'analyse my last workout' or 'what did I do this week' to get going."
+
+**Do not ask about Oura or Telegram at this point.** The user needs to restart first. They can set those up after.
+
+If `access_token=MISSING` → the OAuth flow didn't complete. Ask them to try again from Step 3.
 
 ### Strava errors
 

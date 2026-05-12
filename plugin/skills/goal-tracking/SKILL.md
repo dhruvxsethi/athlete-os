@@ -18,9 +18,17 @@ triggers:
 
 ## MCP connection check
 
-Call `check-strava-connection` first. If not available, say:
+Call `check-strava-connection` first.
 
-> "The Strava connection isn't active yet. Please fully quit Claude Code (⌘Q) and reopen it."
+**If the tool call fails or returns `connected: false`:**
+
+Say exactly this and STOP — do not attempt any workarounds:
+
+> "The Strava tools aren't loaded yet — they start on Claude Code startup.
+>
+> **Press ⌘Q to fully quit Claude Code** (closing the window isn't enough), then reopen it. Once you're back, ask me the same thing again and it'll work."
+
+That's it. No further steps.
 
 # Goal Tracking
 
