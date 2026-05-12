@@ -75,9 +75,13 @@ claude plugin marketplace remove athlete-os 2>/dev/null && echo "  Removed previ
 claude plugin marketplace add "$DIR"
 claude plugin install athlete-os
 
-# ── Patch .mcp.json with absolute path ───────────────────────────────────────
-# Claude Code doesn't expand ${CLAUDE_PLUGIN_ROOT} in MCP args, so we write
-# the absolute path directly into the installed .mcp.json after every install.
+# ── Create launcher script + patch .mcp.json ─────────────────────────────────
+# ${CLAUDE_PLUGIN_ROOT} expands to the source dir, which may have spaces in the
+# path (e.g. "Personal Projects"). Claude Code passes the expanded path to a
+# shell, where spaces split arguments and node fails to start.
+# Fix: create a launcher shell script at a space-free path, then point .mcp.json
+# at the launcher. Works for any clone location on any machine.
+
 INSTALL_PATH=$(node -e "
 try {
   const d = JSON.parse(require('fs').readFileSync(require('os').homedir()+'/.claude/plugins/installed_plugins.json','utf8'));
@@ -86,22 +90,28 @@ try {
 } catch(e) { console.log(''); }
 " 2>/dev/null)
 
-if [ -n "$INSTALL_PATH" ] && [ -f "$INSTALL_PATH/.mcp.json" ]; then
-  node -e "
-const path = '$INSTALL_PATH';
-const config = {
-  mcpServers: {
-    'athlete-os-strava': {
-      command: 'node',
-      args: [path + '/mcp-server/index.js']
-    }
-  }
-};
-require('fs').writeFileSync(path + '/.mcp.json', JSON.stringify(config, null, 2));
-console.log('  ✓ MCP server path set to: ' + path + '/mcp-server/index.js');
+LAUNCHER="$HOME/.config/athlete-os/mcp-launcher.sh"
+mkdir -p "$HOME/.config/athlete-os"
+
+if [ -n "$INSTALL_PATH" ]; then
+  # Write launcher — quotes the path so spaces are handled correctly
+  printf '#!/bin/sh\nexec node "%s/mcp-server/index.js"\n' "$INSTALL_PATH" > "$LAUNCHER"
+  chmod +x "$LAUNCHER"
+
+  # Patch both the cache and source .mcp.json to use the launcher
+  MCP_CONFIG="{\"mcpServers\":{\"athlete-os-strava\":{\"command\":\"$LAUNCHER\"}}}"
+
+  echo "$MCP_CONFIG" | node -e "
+const fs=require('fs'),data=require('fs').readFileSync('/dev/stdin','utf8').trim();
+const parsed=JSON.parse(data);
+const pretty=JSON.stringify(parsed,null,2);
+fs.writeFileSync('$INSTALL_PATH/.mcp.json', pretty);
+fs.writeFileSync('$DIR/plugin/.mcp.json', pretty);
+console.log('  ✓ MCP launcher: $LAUNCHER');
+console.log('  ✓ Server: $INSTALL_PATH/mcp-server/index.js');
   "
 else
-  echo "  ⚠ Could not find install path — MCP server may not load. Try running install.sh again."
+  echo "  ⚠ Could not find install path — run install.sh again."
 fi
 
 echo ""
