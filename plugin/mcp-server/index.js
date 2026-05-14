@@ -705,11 +705,20 @@ function describeCode(c) {
 }
 
 // ─── MCP Protocol (JSON-RPC over stdio, no SDK needed) ───────────────────────
+// Supports both transports:
+//   • Newline-delimited JSON  — used by Claude Code plugin system (2025-11-25+)
+//   • Content-Length framing  — used by external MCP clients / older versions
+
+let useNdjson = false; // auto-detected from first message
 
 function send(msg) {
   const json = JSON.stringify(msg);
-  const len = Buffer.byteLength(json, "utf8");
-  process.stdout.write(`Content-Length: ${len}\r\n\r\n${json}`);
+  if (useNdjson) {
+    process.stdout.write(json + "\n");
+  } else {
+    const len = Buffer.byteLength(json, "utf8");
+    process.stdout.write(`Content-Length: ${len}\r\n\r\n${json}`);
+  }
 }
 
 function reply(id, result) {
@@ -729,17 +738,33 @@ process.stdin.on("data", (chunk) => {
 
 function dispatch() {
   while (true) {
-    const sep = buf.indexOf("\r\n\r\n");
-    if (sep === -1) return;
-    const header = buf.slice(0, sep).toString("utf8");
-    const match = header.match(/Content-Length:\s*(\d+)/i);
-    if (!match) { buf = buf.slice(sep + 4); continue; }
-    const len = parseInt(match[1], 10);
-    const start = sep + 4;
-    if (buf.length < start + len) return;
-    const body = buf.slice(start, start + len).toString("utf8");
-    buf = buf.slice(start + len);
-    try { handle(JSON.parse(body)); } catch (e) { process.stderr.write(`[athlete-os] parse error: ${e.message}\n`); }
+    // Auto-detect transport on first non-empty data
+    if (buf.length > 0 && buf[0] === 0x7b /* '{' */) {
+      useNdjson = true;
+    }
+
+    if (useNdjson) {
+      // Newline-delimited JSON: one complete JSON object per line
+      const nl = buf.indexOf(0x0a /* '\n' */);
+      if (nl === -1) return;
+      const line = buf.slice(0, nl).toString("utf8").trim();
+      buf = buf.slice(nl + 1);
+      if (!line) continue;
+      try { handle(JSON.parse(line)); } catch (e) { process.stderr.write(`[athlete-os] parse error: ${e.message}\n`); }
+    } else {
+      // Content-Length framing (LSP-style)
+      const sep = buf.indexOf("\r\n\r\n");
+      if (sep === -1) return;
+      const header = buf.slice(0, sep).toString("utf8");
+      const match = header.match(/Content-Length:\s*(\d+)/i);
+      if (!match) { buf = buf.slice(sep + 4); continue; }
+      const len = parseInt(match[1], 10);
+      const start = sep + 4;
+      if (buf.length < start + len) return;
+      const body = buf.slice(start, start + len).toString("utf8");
+      buf = buf.slice(start + len);
+      try { handle(JSON.parse(body)); } catch (e) { process.stderr.write(`[athlete-os] parse error: ${e.message}\n`); }
+    }
   }
 }
 
@@ -747,8 +772,10 @@ async function handle(msg) {
   const { id, method, params } = msg;
 
   if (method === "initialize") {
+    // Echo back the client's requested protocol version (supports any version)
+    const clientVersion = params?.protocolVersion || "2024-11-05";
     return reply(id, {
-      protocolVersion: "2024-11-05",
+      protocolVersion: clientVersion,
       capabilities: { tools: {} },
       serverInfo: { name: "athlete-os-strava", version: "0.1.0" },
     });

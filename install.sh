@@ -75,12 +75,10 @@ claude plugin marketplace remove athlete-os 2>/dev/null && echo "  Removed previ
 claude plugin marketplace add "$DIR"
 claude plugin install athlete-os
 
-# ── Create launcher script + patch .mcp.json ─────────────────────────────────
-# ${CLAUDE_PLUGIN_ROOT} expands to the source dir, which may have spaces in the
-# path (e.g. "Personal Projects"). Claude Code passes the expanded path to a
-# shell, where spaces split arguments and node fails to start.
-# Fix: create a launcher shell script at a space-free path, then point .mcp.json
-# at the launcher. Works for any clone location on any machine.
+# ── Patch .mcp.json with absolute paths ──────────────────────────────────────
+# Claude Code's plugin system uses NDJSON transport and spawns the command
+# directly. We write absolute paths for both node and the server script so
+# the MCP server loads correctly regardless of PATH or clone location.
 
 INSTALL_PATH=$(node -e "
 try {
@@ -90,28 +88,33 @@ try {
 } catch(e) { console.log(''); }
 " 2>/dev/null)
 
-LAUNCHER="$HOME/.config/athlete-os/mcp-launcher.sh"
-mkdir -p "$HOME/.config/athlete-os"
+NODE_BIN=$(command -v node)
 
-if [ -n "$INSTALL_PATH" ]; then
-  # Write launcher — quotes the path so spaces are handled correctly
-  printf '#!/bin/sh\nexec node "%s/mcp-server/index.js"\n' "$INSTALL_PATH" > "$LAUNCHER"
-  chmod +x "$LAUNCHER"
+if [ -n "$INSTALL_PATH" ] && [ -n "$NODE_BIN" ]; then
+  # Copy updated mcp-server/index.js from source to cache
+  cp "$DIR/plugin/mcp-server/index.js" "$INSTALL_PATH/mcp-server/index.js"
 
-  # Patch both the cache and source .mcp.json to use the launcher
-  MCP_CONFIG="{\"mcpServers\":{\"athlete-os-strava\":{\"command\":\"$LAUNCHER\"}}}"
-
-  echo "$MCP_CONFIG" | node -e "
-const fs=require('fs'),data=require('fs').readFileSync('/dev/stdin','utf8').trim();
-const parsed=JSON.parse(data);
-const pretty=JSON.stringify(parsed,null,2);
+  # Write .mcp.json with absolute node path + absolute index.js path
+  # (no shell script launcher needed — avoids PATH and spaces-in-path issues)
+  node -e "
+const fs = require('fs');
+const config = {
+  mcpServers: {
+    'athlete-os-strava': {
+      command: '$NODE_BIN',
+      args: ['$INSTALL_PATH/mcp-server/index.js']
+    }
+  }
+};
+const pretty = JSON.stringify(config, null, 2);
 fs.writeFileSync('$INSTALL_PATH/.mcp.json', pretty);
 fs.writeFileSync('$DIR/plugin/.mcp.json', pretty);
-console.log('  ✓ MCP launcher: $LAUNCHER');
+console.log('  ✓ Node:   $NODE_BIN');
 console.log('  ✓ Server: $INSTALL_PATH/mcp-server/index.js');
   "
 else
-  echo "  ⚠ Could not find install path — run install.sh again."
+  [ -z "$INSTALL_PATH" ] && echo "  ⚠ Could not find install path — run install.sh again."
+  [ -z "$NODE_BIN" ]    && echo "  ⚠ Could not find node binary."
 fi
 
 echo ""

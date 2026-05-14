@@ -1,8 +1,10 @@
 {
   "mcpServers": {
     "athlete-os-strava": {
-      "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/index.js"]
+      "command": "/opt/homebrew/bin/node",
+      "args": [
+        "/Users/dhruvsethi/.claude/plugins/cache/athlete-os/athlete-os/0.3.0/mcp-server/index.js"
+      ]
     }
   }
 }
